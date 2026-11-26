@@ -25,7 +25,7 @@ enum Icons {
                 ctx.setBlendMode(.normal)
             }
             // The "M" (Archivo, very bold), centered.
-            let font = Theme.font(size * 0.5, weight: 900)
+            let font = Theme.wide(size * 0.5)
             let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.black]
             let m = NSAttributedString(string: "M", attributes: attrs)
             let line = CTLineCreateWithAttributedString(m)

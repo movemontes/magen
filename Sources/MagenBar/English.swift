@@ -1,6 +1,14 @@
 // Tabela português → inglês do app (como o core/en.json do Treco).
 // A chave é o texto em português exatamente como está no código.
 let english: [String: String] = [
+    "Veja se o Magen está protegendo este Mac.": "See whether Magen is protecting this Mac.",
+    "Teste, libere ou bloqueie um site.": "Test, unblock or block a site.",
+    "A janela que aparece quando um site adulto é bloqueado.": "The window that appears when an adult site is blocked.",
+    "Opções contra burla e como o Magen funciona.": "Anti-bypass options and how Magen works.",
+    "Quem fez, créditos e atualizações.": "Who made it, credits and updates.",
+    "Ver versículo": "Show a verse",
+    "Atualizar listas": "Update lists",
+    "Testar um site": "Test a site",
     "ME AJUDA: TENHO 5 BOCAS PRA ALIMENTAR": "HELP ME: I'VE GOT 5 MOUTHS TO FEED",
     "e fiz esse app de graça pra você.": "and I made this app for free, for you.",
     "Oi, eu sou o %@. O Magen não tem anúncio, não pede conta e não manda nada seu pra internet.": "Hi, I'm %@. Magen has no ads, needs no account and never sends anything of yours to the internet.",

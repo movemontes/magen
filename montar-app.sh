@@ -10,6 +10,14 @@ rm -rf "$APP"   # build/ só tem coisas geradas por este script
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/MagenBar "$APP/Contents/MacOS/MagenBar"
 cp -R Resources/fonts "$APP/Contents/Resources/fonts"   # Archivo (SIL OFL)
+# Clash Grotesk (ITF FFL): pode ir dentro do app, mas não no repositório público.
+# Vem de fora do Git; sem ela, o app usa a Archivo.
+for dir in "/Volumes/Dados/PautaCodigo/fontes-privadas" "$HOME/Library/Fonts"; do
+  if [ -f "$dir/ClashGrotesk-Medium.otf" ] && [ -f "$dir/ClashGrotesk-Semibold.otf" ]; then
+    cp "$dir/ClashGrotesk-Medium.otf" "$dir/ClashGrotesk-Semibold.otf" "$APP/Contents/Resources/fonts/"
+    break
+  fi
+done
 # O serviço que bloqueia (vai junto, o app instala sozinho)
 mkdir -p "$APP/Contents/Resources/servico"
 cp .build/release/magend .build/release/magen Resources/servico/*.sh "$APP/Contents/Resources/servico/"

@@ -20,7 +20,7 @@ enum AppIconArt {
             let body = NSRect(x: 100 * k, y: 100 * k, width: 824 * k, height: 824 * k)
             Theme.red.setFill()
             NSBezierPath(roundedRect: body, xRadius: 185 * k, yRadius: 185 * k).fill()
-            let font = Theme.font(430 * k, weight: 900)
+            let font = Theme.wide(430 * k)
             let line = { (color: NSColor) in
                 CTLineCreateWithAttributedString(NSAttributedString(string: "M", attributes: [.font: font, .foregroundColor: color]))
             }
@@ -103,7 +103,7 @@ final class DonatePopup: NSObject, NSWindowDelegate {
             card.addSubview(v)
             y += height + gap
         }
-        place(Theme.label("ME AJUDA: TENHO 5 BOCAS PRA ALIMENTAR", size: 18, bold: true, color: Theme.red, wrap: textW), gap: 6)
+        place(Theme.label("ME AJUDA: TENHO 5 BOCAS PRA ALIMENTAR", size: 18, bold: true, color: Theme.red, wrap: textW, wide: true), gap: 6)
         place(Theme.label("e fiz esse app de graça pra você.", size: 13, bold: true, wrap: textW), gap: 14)
         place(Theme.label(trf("Oi, eu sou o %@. O Magen não tem anúncio, não pede conta e não manda nada seu pra internet.", Author.name),
                           size: 12, color: Theme.dark, wrap: textW), gap: 10)

@@ -102,7 +102,7 @@ final class VerseAlert {
         let card = CardView()
 
         // Header: MAGEN ··· SITE BLOQUEADO (like the Treco title bar)
-        let logo = Theme.label("MAGEN", size: 26, bold: true)
+        let logo = Theme.label("MAGEN", size: 26, bold: true, wide: true)
         let tag = Theme.label(heading.uppercased(), size: 12, bold: true, color: Theme.red)
         let shield = Theme.symbol("shield.lefthalf.filled", size: 18, color: Theme.red)
         var y: CGFloat = 16
@@ -116,7 +116,7 @@ final class VerseAlert {
         rule.fill = Theme.ink
         y += Theme.line + 26
 
-        let title = Theme.label(v.title, size: 34, bold: true, color: Theme.red, wrap: textW)
+        let title = Theme.label(v.title, size: 32, bold: true, color: Theme.red, wrap: textW, wide: true)
         let th = textHeight(title, width: textW)
         title.frame = NSRect(x: pad, y: y, width: textW, height: th)
         y += th + 18

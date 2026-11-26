@@ -44,14 +44,15 @@ final class MainWindow: NSObject, NSWindowDelegate {
     private var tab: Tab = .inicio
     private let root = FlippedView()
     private let panel = FlippedView()
-    private var tabButtons: [BoxButton] = []
-    private let statusLabel = Theme.label("", size: 12)
+    private var tabButtons: [RailButton] = []
+    private let statusLabel = Theme.label("", size: 11)
     private var refreshTimer: Timer?
     // Sites tab state
     private let siteField = NSTextField()
     private var siteResult = ""
 
-    static let size = NSSize(width: 660, height: 650)
+    static let size = NSSize(width: 760, height: 700)
+    static let railW: CGFloat = 92, barH: CGFloat = 64
     private let pad: CGFloat = 16
 
     init(app: MagenActions) {
@@ -64,12 +65,12 @@ final class MainWindow: NSObject, NSWindowDelegate {
         w.titleVisibility = .hidden
         w.title = "Magen"
         w.isMovableByWindowBackground = true
-        w.backgroundColor = Theme.paper
+        w.backgroundColor = Theme.cream
         w.isReleasedWhenClosed = false
         w.delegate = self
         w.appearance = NSAppearance(named: .aqua) // always the light Treco look
         root.frame = NSRect(origin: .zero, size: Self.size)
-        root.fill = Theme.paper
+        root.fill = Theme.cream
         root.cursor = Cursors.arrowCursor
         w.contentView = root
         w.contentMinSize = Self.size
@@ -105,43 +106,116 @@ final class MainWindow: NSObject, NSWindowDelegate {
 
     // MARK: layout
 
+    /// Short sentence under each page title.
+    private func lead(_ t: Tab) -> String {
+        switch t {
+        case .inicio: return tr("Veja se o Magen está protegendo este Mac.")
+        case .sites: return tr("Teste, libere ou bloqueie um site.")
+        case .versiculos: return tr("A janela que aparece quando um site adulto é bloqueado.")
+        case .protecao: return tr("Opções contra burla e como o Magen funciona.")
+        case .sobre: return tr("Quem fez, créditos e atualizações.")
+        }
+    }
+
     private func buildChrome() {
         root.subviews.forEach { $0.removeFromSuperview() }
         tabButtons.removeAll()
         let size = window?.contentView?.bounds.size ?? Self.size
-        let W = size.width
-        // Header (the window's traffic lights sit at the left, so the logo starts after them)
-        let logo = Theme.label("MAGEN", size: 26, bold: true)
-        logo.frame = NSRect(x: 84, y: 12, width: 160, height: logo.fittingSize.height)
-        root.addSubview(logo)
-        statusLabel.alignment = .right
-        statusLabel.frame = NSRect(x: 250, y: 22, width: W - 250 - pad, height: 18)
-        root.addSubview(statusLabel)
-        let rule = FlippedView(frame: NSRect(x: 0, y: 56, width: W, height: Theme.line))
-        rule.fill = Theme.ink
-        root.addSubview(rule)
+        let W = size.width, H = size.height, R = Self.railW
 
-        // Tabs
-        let tabsY: CGFloat = 72, tabH: CGFloat = 56, gap: CGFloat = 8
-        let tabW = (W - pad * 2 - gap * CGFloat(Tab.allCases.count - 1)) / CGFloat(Tab.allCases.count)
+        // Black rail on the left: logo tile on top (below the window buttons), pages, "Sobre" at the bottom.
+        let rail = FlippedView(frame: NSRect(x: 0, y: 0, width: R, height: H))
+        rail.fill = Theme.ink
+        root.addSubview(rail)
+        let tile = FlippedView(frame: NSRect(x: (R - 56) / 2, y: 40, width: 56, height: 56))
+        tile.fill = Theme.red
+        let m = Theme.label("M", size: 30, align: .center, wide: true)
+        m.font = Theme.wide(30); m.textColor = Theme.paper
+        let mShadow = Theme.label("M", size: 30, align: .center, wide: true)
+        mShadow.font = Theme.wide(30); mShadow.textColor = Theme.ink
+        let mh = m.fittingSize.height
+        mShadow.frame = NSRect(x: 2, y: (56 - mh) / 2 + 2, width: 56, height: mh)
+        m.frame = NSRect(x: 0, y: (56 - mh) / 2, width: 56, height: mh)
+        tile.addSubview(mShadow); tile.addSubview(m)
+        rail.addSubview(tile)
+        var ry: CGFloat = 116
         for t in Tab.allCases {
-            let b = BoxButton(t.title, symbol: t.symbol) { [weak self] in self?.select(t) }
-            b.fontSize = 11
+            let b = RailButton(t.title, symbol: t.symbol) { [weak self] in self?.select(t) }
             b.selected = t == tab
-            b.frame = NSRect(x: pad + CGFloat(t.rawValue) * (tabW + gap), y: tabsY, width: tabW, height: tabH)
-            root.addSubview(b)
+            let y = t == .sobre ? H - 76 : ry
+            b.frame = NSRect(x: 8, y: y, width: R - 12, height: 66)
+            rail.addSubview(b)
             tabButtons.append(b)
+            ry += 70
         }
-        panel.frame = NSRect(x: pad, y: tabsY + tabH + 10, width: W - pad * 2, height: size.height - tabsY - tabH - 10 - pad)
-        panel.fill = Theme.paper
-        panel.border = Theme.ink
+
+        // Page header: small status line, big title on a highlighter, lead.
+        let x0 = R + 28
+        statusLabel.frame = NSRect(x: x0, y: 14, width: W - x0 - 20, height: 16)
+        statusLabel.alignment = .left
+        root.addSubview(statusLabel)
+        let title = PageTitle(tab.title, size: 40)
+        title.setFrameOrigin(NSPoint(x: x0, y: 34))
+        root.addSubview(title)
+        let leadLabel = Theme.label(lead(tab), size: 13, color: Theme.dark)
+        leadLabel.frame = NSRect(x: x0, y: title.frame.maxY + 6, width: W - x0 - 24, height: 18)
+        root.addSubview(leadLabel)
+
+        // Content area (cream) and white bottom bar.
+        let top = leadLabel.frame.maxY + 10
+        panel.frame = NSRect(x: R + 8, y: top, width: W - R - 16, height: H - top - Self.barH - 6)
+        panel.fill = nil
+        panel.border = nil
         root.addSubview(panel)
+        buildBottomBar(W: W, H: H)
+    }
+
+    /// White bar at the bottom: dashed "test a site" area + the main actions.
+    private func buildBottomBar(W: CGFloat, H: CGFloat) {
+        let R = Self.railW, bh = Self.barH
+        let bar = FlippedView(frame: NSRect(x: R, y: H - bh, width: W - R, height: bh))
+        bar.fill = Theme.paper
+        let rule = FlippedView(frame: NSRect(x: 0, y: 0, width: W - R, height: Theme.line))
+        rule.fill = Theme.ink
+        bar.addSubview(rule)
+        let on = app?.serviceIsOn ?? false
+        let main = BoxButton(on ? "Ver versículo" : (Service.busy ? "Ligando…" : "Ligar a proteção")) { [weak self] in
+            if on { self?.app?.showVersePreview() } else { self?.app?.turnOn() }
+        }
+        main.accent = true
+        main.enabled = on || !Service.busy
+        main.fontSize = 12
+        let update = BoxButton("Atualizar listas") { [weak self] in self?.app?.requestUpdate() }
+        update.enabled = on
+        update.fontSize = 12
+        let bw: CGFloat = 150, gap: CGFloat = 10, by: CGFloat = 14, bht: CGFloat = 38
+        main.frame = NSRect(x: W - R - 20 - bw, y: by, width: bw, height: bht)
+        update.frame = NSRect(x: main.frame.minX - gap - bw, y: by, width: bw, height: bht)
+        let dashed = DashedButton("Testar um site") { [weak self] in
+            self?.select(.sites)
+            DispatchQueue.main.async { self?.window.makeFirstResponder(self?.siteField) }
+        }
+        dashed.frame = NSRect(x: 20, y: by, width: update.frame.minX - 20 - 16, height: bht - Theme.smallShadow)
+        [dashed, update, main].forEach { bar.addSubview($0) }
+        root.addSubview(bar)
     }
 
     private func select(_ t: Tab) {
+        let changed = t != tab
         tab = t
-        for (i, b) in tabButtons.enumerated() { b.selected = i == t.rawValue }
+        buildChrome()
         reload()
+        if changed {
+            // Page enters with a small slide, like Pauta.
+            let end = panel.frame
+            panel.frame = end.offsetBy(dx: 0, dy: 10)
+            panel.alphaValue = 0
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.18
+                panel.animator().frame = end
+                panel.animator().alphaValue = 1
+            }
+        }
     }
 
     private func updateHeader() {
@@ -150,8 +224,8 @@ final class MainWindow: NSObject, NSWindowDelegate {
         let s = app.readState()
         let count = s.map { $0.domains < 1000 ? tr("baixando as listas…") : trf("%@ sites", num($0.domains)) } ?? ""
         statusLabel.stringValue = on ? trf("Protegendo · %@", count) : tr("Desligado")
-        statusLabel.textColor = on ? Theme.ink : Theme.red
-        statusLabel.font = Theme.font(12, bold: !on)
+        statusLabel.textColor = on ? Theme.dark : Theme.red
+        statusLabel.font = Theme.font(11, bold: !on)
     }
 
     func reload() {
@@ -194,10 +268,12 @@ final class MainWindow: NSObject, NSWindowDelegate {
 
         let hero = FlippedView()
         hero.fill = on ? Theme.ink : Theme.red
-        hero.frame = NSRect(x: 20, y: y, width: contentW, height: 96)
+        hero.shadowSize = 6
+        hero.shadowColor = on ? Theme.red : Theme.ink
+        hero.frame = NSRect(x: 20, y: y, width: contentW, height: 102)
         let icon = Theme.symbol(on ? "shield.lefthalf.filled" : "shield.slash", size: 40, color: Theme.paper)
         icon.frame = NSRect(x: 22, y: 22, width: 52, height: 52)
-        let big = Theme.label(on ? "PROTEGENDO" : "DESLIGADO", size: 28, bold: true, color: Theme.paper)
+        let big = Theme.label(on ? "PROTEGENDO" : "DESLIGADO", size: 28, bold: true, color: Theme.paper, wide: true)
         big.frame = NSRect(x: 92, y: 20, width: contentW - 110, height: big.fittingSize.height)
         let installed = Service.isInstalled
         let small = Theme.label(on ? "Sites adultos não abrem neste Mac." :
@@ -222,13 +298,15 @@ final class MainWindow: NSObject, NSWindowDelegate {
             let warn = FlippedView()
             warn.fill = Theme.paper
             warn.border = Theme.red
+            warn.shadowSize = Theme.smallShadow
+            warn.shadowColor = Theme.red
             let t = Theme.label("A Retransmissão Privada do iCloud está ligada", size: 13, bold: true, color: Theme.red)
             let d = Theme.label(trf("Com ela ligada, apps como o Claude podem ficar sem internet. Desligue em: %@", PrivateRelay.howTo),
                                 size: 11, wrap: contentW - 190)
             let b = BoxButton("Abrir Ajustes") { PrivateRelay.openSettings() }
             b.accent = true
             let dh = textHeight(d, width: contentW - 190)
-            let h = max(64, 12 + 18 + 4 + dh + 12)
+            let h = max(68, 12 + 18 + 4 + dh + 16)
             warn.frame = NSRect(x: 20, y: y, width: contentW, height: h)
             t.frame = NSRect(x: 14, y: 12, width: contentW - 190, height: 18)
             d.frame = NSRect(x: 14, y: 34, width: contentW - 190, height: dh)
@@ -252,22 +330,15 @@ final class MainWindow: NSObject, NSWindowDelegate {
             let box = FlippedView()
             box.border = Theme.ink
             box.fill = Theme.paper
+            box.shadowSize = Theme.smallShadow
             box.frame = NSRect(x: 20 + CGFloat(i % 2) * (bw + gap), y: y + CGFloat(i / 2) * (bh + gap), width: bw, height: bh)
-            let n = Theme.label(st.0, size: 22, bold: true)
+            let n = Theme.label(st.0, size: 22, bold: true, wide: true)
             n.frame = NSRect(x: 14, y: 12, width: bw - 28, height: n.fittingSize.height)
             let l = Theme.label(st.1, size: 11, color: Theme.dark)
             l.frame = NSRect(x: 14, y: 14 + n.fittingSize.height, width: bw - 28, height: l.fittingSize.height)
             box.addSubview(n); box.addSubview(l)
             panel.addSubview(box)
         }
-        y += 2 * bh + gap + 16
-
-        let bw2 = (contentW - gap) / 2
-        let up = BoxButton("Atualizar as listas", symbol: "arrow.clockwise") { [weak self] in self?.app?.requestUpdate() }
-        let verse = BoxButton("Ver a janela do versículo", symbol: "book") { [weak self] in self?.app?.showVersePreview() }
-        up.frame = NSRect(x: 20, y: y, width: bw2, height: 56)
-        verse.frame = NSRect(x: 20 + bw2 + gap, y: y, width: bw2, height: 56)
-        panel.addSubview(up); panel.addSubview(verse)
     }
 
     // MARK: Sites
@@ -315,6 +386,7 @@ final class MainWindow: NSObject, NSWindowDelegate {
             for item in items.prefix(6) {
                 let row = FlippedView()
                 row.border = Theme.ink
+                row.fill = Theme.paper
                 row.frame = NSRect(x: x, y: ly, width: colW, height: 30)
                 let l = Theme.label(item, size: 12)
                 l.lineBreakMode = .byTruncatingMiddle
@@ -479,7 +551,7 @@ final class MainWindow: NSObject, NSWindowDelegate {
 
     private func buildSobre() {
         var y: CGFloat = 24
-        let logo = Theme.label("MAGEN", size: 44, bold: true)
+        let logo = Theme.label("MAGEN", size: 44, bold: true, wide: true)
         y = add(logo, y: y)
         let sub = Theme.label(trf("“escudo” em hebraico · versão %@", appVersion), size: 13, color: Theme.red)
         sub.font = Theme.font(13, bold: true)

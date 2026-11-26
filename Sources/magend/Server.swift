@@ -55,14 +55,25 @@ final class DNSServer {
             return r
         }
         cacheLock.unlock()
-        guard let r = forward(query, overTCP: overTCP) else {
+        // One more round if every server failed (a lost packet is common on Wi-Fi).
+        guard let r = forward(query, overTCP: overTCP) ?? forward(query, overTCP: overTCP) else {
             failLock.lock(); upstreamFailures += 1; failLock.unlock()
+            // Internet hiccup: answer with the last good answer we know (up to 1 day old)
+            // instead of "address not found".
+            cacheLock.lock()
+            let stale = cache[key]
+            cacheLock.unlock()
+            if let stale, stale.until.addingTimeInterval(86_400) > Date() {
+                var old = stale.answer
+                old[0] = query[0]; old[1] = query[1]
+                return old
+            }
             return DNSMessage.failureResponse(query: query, question: q)
         }
         // Keep good answers and "does not exist" answers; never keep truncated ones.
         if let rc = DNSMessage.rcode(r), (rc == 0 || rc == 3), r.count > 3, r[2] & 0x02 == 0 {
             cacheLock.lock()
-            if cache.count > 20_000 { cache.removeAll(keepingCapacity: true) }
+            if cache.count > 50_000 { cache.removeAll(keepingCapacity: true) }
             cache[key] = (r, Date().addingTimeInterval(30))
             cacheLock.unlock()
         }

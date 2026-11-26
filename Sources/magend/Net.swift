@@ -23,7 +23,7 @@ func withSockaddr<T>(_ a: inout sockaddr_in, _ body: (UnsafePointer<sockaddr>, s
 }
 
 /// Sends a query to one upstream server over UDP and waits for the answer.
-func udpExchange(_ query: [UInt8], server: String, timeout: Int = 2) -> [UInt8]? {
+func udpExchange(_ query: [UInt8], server: String, timeout: Int = 1) -> [UInt8]? {
     guard var addr = makeAddr(server, 53) else { return nil }
     let fd = socket(AF_INET, SOCK_DGRAM, 0)
     guard fd >= 0 else { return nil }

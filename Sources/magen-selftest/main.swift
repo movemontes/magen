@@ -38,6 +38,9 @@ check(!f.isBlocked("www.icloud.com"), "iCloud normal funciona")
 check(f.isBlocked("ADULT.TEST."), "maiúsculas e ponto final")
 check(f.verdict(Array("mask.icloud.com".utf8)) == .blockedBypass, "anti-burla não conta como site adulto (sem aviso)")
 check(f.verdict(Array("www.adult.test".utf8)) == .blocked, "site adulto conta (gera aviso)")
+var cfg2 = MagenConfig(); cfg2.blockPrivateRelay = false
+let f2 = Filter(); f2.rebuild(listDomains: ["adult.test"], config: cfg2)
+check(!f2.isBlocked("mask.icloud.com") && f2.isBlocked("dns.google"), "Retransmissão Privada liberada sem desligar o resto do anti-burla")
 
 // DNS messages
 let q = DNSMessage.buildQuery(id: 0x1234, name: "Www.Adult.Test")

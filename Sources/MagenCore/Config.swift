@@ -11,6 +11,8 @@ public struct MagenConfig: Codable {
     public var block: [String] = []
     /// Block tricks that skip Magen (browser "secure DNS", iCloud Private Relay).
     public var antiBypass: Bool = true
+    /// Block iCloud Private Relay (macOS then shows a warning once per network).
+    public var blockPrivateRelay: Bool = true
     /// Hours between list updates.
     public var updateEveryHours: Double = 24
 
@@ -31,6 +33,7 @@ public struct MagenConfig: Codable {
         allow = try c.decodeIfPresent([String].self, forKey: .allow) ?? d.allow
         block = try c.decodeIfPresent([String].self, forKey: .block) ?? d.block
         antiBypass = try c.decodeIfPresent(Bool.self, forKey: .antiBypass) ?? d.antiBypass
+        blockPrivateRelay = try c.decodeIfPresent(Bool.self, forKey: .blockPrivateRelay) ?? d.blockPrivateRelay
         updateEveryHours = try c.decodeIfPresent(Double.self, forKey: .updateEveryHours) ?? d.updateEveryHours
     }
 
@@ -126,13 +129,15 @@ public enum BuiltIn {
         "tinder.com", "sslip.io", "nip.io",
     ]
 
+    /// iCloud Private Relay: Apple's documented way for a network to turn it off.
+    public static let privateRelayDomains: [String] = ["mask.icloud.com", "mask-h2.icloud.com"]
+
     /// Blocked when `antiBypass` is on. These are ways a browser or the
     /// system can look up sites without asking Magen.
     public static let antiBypassDomains: [String] = [
         // Firefox: this "canary" domain tells it not to turn on DNS-over-HTTPS by itself
         "use-application-dns.net",
         // iCloud Private Relay (Apple documents this way for networks to turn it off)
-        "mask.icloud.com", "mask-h2.icloud.com",
         // Common DNS-over-HTTPS / DNS-over-TLS servers used by browser "secure DNS"
         "dns.google", "dns.google.com", "dns64.dns.google",
         "cloudflare-dns.com", "one.one.one.one", "1dot1dot1dot1.cloudflare-dns.com",

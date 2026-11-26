@@ -19,7 +19,9 @@ public final class Filter {
         for d in listDomains where !BuiltIn.neverListEntries.contains(d) { all.append(d) }
         for d in config.block { if let n = Domains.normalize(Substring(d)) { all.append(n) } }
         let newBlock = DomainSet(all)
-        let newBypass = DomainSet(config.antiBypass ? BuiltIn.antiBypassDomains : [])
+        var bypass = config.antiBypass ? BuiltIn.antiBypassDomains : []
+        if config.blockPrivateRelay { bypass += BuiltIn.privateRelayDomains }
+        let newBypass = DomainSet(bypass)
         let newAllow = DomainSet(config.allow.compactMap { Domains.normalize(Substring($0)) })
         lock.lock()
         blockSet = newBlock

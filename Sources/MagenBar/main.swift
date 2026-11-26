@@ -1,8 +1,6 @@
-// MagenBar — o ícone do Magen na barra de menus.
-// Mostra se o bloqueio está ligado e, quando um site adulto é bloqueado,
-// manda uma notificação com um versículo (sem dizer qual site foi).
+// MagenBar — o app do Magen: ícone na barra de menus, janela de opções e a
+// janela com versículo que aparece quando um site adulto é bloqueado.
 import AppKit
-import UserNotifications
 import Darwin
 import notify
 import MagenCore
@@ -12,57 +10,52 @@ let env = ProcessInfo.processInfo.environment
 let magenDir = URL(fileURLWithPath: env["MAGEN_DIR"] ?? Paths.defaultDir.path)
 let dnsPort = UInt16(env["MAGEN_PORT"] ?? "") ?? 53
 let magenCLI = "/usr/local/bin/magen"
+let startedAtLogin = CommandLine.arguments.contains("--login")
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotificationCenterDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, MagenActions {
     private var statusItem: NSStatusItem!
     private let menu = NSMenu()
     private var blockToken: Int32 = 0
-    private var lastNotification = Date.distantPast
+    private var lastAlert = Date.distantPast
     private var lastSeenBlockAt: Date?
     private var lastVerseIndex = -1
-    private let defaults = UserDefaults.standard
-    private let banner = Banner()
-    /// True only if macOS allowed normal notifications (needs an Apple signature).
-    private var systemNotificationsAllowed = false
-
-    private var notificationsOn: Bool {
-        get { defaults.object(forKey: "versiculos") as? Bool ?? true }
-        set { defaults.set(newValue, forKey: "versiculos") }
-    }
-    /// Minimum time between two verse notifications.
-    private let minGap: TimeInterval = 60
+    private let alert = VerseAlert()
+    private lazy var mainWindow = MainWindow(app: self)
 
     func applicationDidFinishLaunching(_ n: Notification) {
+        Theme.registerFont()
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         menu.delegate = self
         statusItem.menu = menu
         refreshIcon()
 
-        let center = UNUserNotificationCenter.current()
-        center.delegate = self
-        center.requestAuthorization(options: [.alert, .sound]) { ok, err in
-            DispatchQueue.main.async { self.systemNotificationsAllowed = ok }
-            print(ok ? "Notificações do macOS: permitidas." :
-                  "Notificações do macOS indisponíveis (\(err?.localizedDescription ?? "negado")); uso o balão do Magen.")
-        }
-
         lastSeenBlockAt = readState()?.lastBlockAt
         notify_register_dispatch(Signals.blocked, &blockToken, DispatchQueue.main) { [weak self] _ in self?.siteBlocked() }
-        // Keep the icon right even if the service stops or starts.
         Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { [weak self] _ in self?.refreshIcon() }
-        print("Magen (ícone) rodando. Pasta: \(magenDir.path)")
+        print("Magen (app) rodando. Pasta: \(magenDir.path)")
+
+        if let tab = env["MAGEN_TEST_TAB"].flatMap(Int.init).flatMap(MainWindow.Tab.init(rawValue:)) {
+            runSnapshotTest(tab)
+        } else if !startedAtLogin {
+            mainWindow.show() // opened by the person (not at login): show the window
+        }
+    }
+
+    /// Double-clicking Magen.app again while it runs opens the window.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        mainWindow.show(); return false
     }
 
     // MARK: state
 
-    private func readState() -> MagenState? {
+    func readState() -> MagenState? {
         guard let d = try? Data(contentsOf: Paths.state(magenDir)) else { return nil }
         let dec = JSONDecoder(); dec.dateDecodingStrategy = .iso8601
         return try? dec.decode(MagenState.self, from: d)
     }
 
     /// The service rewrites its state file every 30 s while it runs.
-    private var serviceIsOn: Bool {
+    var serviceIsOn: Bool {
         guard let attrs = try? FileManager.default.attributesOfItem(atPath: Paths.state(magenDir).path),
               let mod = attrs[.modificationDate] as? Date else { return false }
         return Date().timeIntervalSince(mod) < 90 && FileManager.default.fileExists(atPath: Paths.pid(magenDir).path)
@@ -77,16 +70,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         statusItem.button?.toolTip = on ? "Magen: protegendo" : "Magen: desligado"
     }
 
-    // MARK: notification
+    // MARK: verse window
 
     private func siteBlocked() {
         let s = readState()
-        // Ignore old news (e.g. the signal arrived twice for the same block).
-        if let at = s?.lastBlockAt, let seen = lastSeenBlockAt, at <= seen { return }
+        if let at = s?.lastBlockAt, let seen = lastSeenBlockAt, at <= seen { return } // old news
         lastSeenBlockAt = s?.lastBlockAt
-        guard notificationsOn, Date().timeIntervalSince(lastNotification) >= minGap else { return }
-        lastNotification = Date()
-        sendVerse(title: "Site bloqueado pelo Magen")
+        guard Prefs.versesOn, !alert.isShowing,
+              Date().timeIntervalSince(lastAlert) >= Double(Prefs.gapMinutes) * 60 else { return }
+        lastAlert = Date()
+        let v = randomVerse()
+        alert.show(v, heading: "Site bloqueado", lockSeconds: Prefs.lockSeconds,
+                   snapshotTo: env["MAGEN_ALERT_PNG"].map { URL(fileURLWithPath: $0) })
+        print("Janela de versículo: \(v.ref)")
+    }
+
+    func showVersePreview() {
+        alert.show(randomVerse(), heading: "Exemplo", lockSeconds: min(Prefs.lockSeconds, 3))
     }
 
     private func randomVerse() -> Verse {
@@ -94,31 +94,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         if verses.count > 1 && i == lastVerseIndex { i = (i + 1) % verses.count }
         lastVerseIndex = i
         return verses[i]
-    }
-
-    private func sendVerse(title: String) {
-        let v = randomVerse()
-        guard systemNotificationsAllowed else {
-            let png = env["MAGEN_BANNER_PNG"].map { URL(fileURLWithPath: $0) }
-            banner.show(title: title, text: v.text, ref: v.ref, snapshotTo: png)
-            print("Balão mostrado: \(v.ref)")
-            return
-        }
-        let c = UNMutableNotificationContent()
-        c.title = title
-        c.subtitle = "\(v.ref) (BLIVRE)"
-        c.body = v.text
-        c.sound = nil
-        let req = UNNotificationRequest(identifier: UUID().uuidString, content: c, trigger: nil)
-        UNUserNotificationCenter.current().add(req) { err in
-            if let err { print("Não consegui mostrar a notificação: \(err.localizedDescription)") }
-            else { print("Notificação enviada: \(v.ref)") }
-        }
-    }
-
-    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
-                                withCompletionHandler done: @escaping (UNNotificationPresentationOptions) -> Void) {
-        done([.banner, .list])
     }
 
     // MARK: menu
@@ -134,71 +109,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         if let s {
             let today = s.todayKey == Self.todayKey() ? s.blockedToday : 0
             info("Bloqueios hoje: \(today.formatted())")
-            info("Sites adultos na lista: \(s.domains.formatted())")
-            if let u = s.lastUpdate { info("Listas atualizadas: \(u.formatted(date: .abbreviated, time: .shortened))") }
         }
         menu.addItem(.separator())
-        item("Ver um versículo agora", #selector(showVerseNow))
-        item("Testar um site…", #selector(testSite))
-        item("Liberar um site bloqueado por engano…", #selector(allowSite))
-        item("Bloquear um site a mais…", #selector(blockSite))
-        item("Atualizar as listas agora", #selector(updateNow))
+        item("Abrir o Magen…", #selector(openWindow))
+        item("Testar ou liberar um site…", #selector(openSites))
+        item("Atualizar as listas agora", #selector(updateFromMenu))
         menu.addItem(.separator())
-        let toggle = NSMenuItem(title: "Notificação com versículo ao bloquear", action: #selector(toggleNotifications), keyEquivalent: "")
-        toggle.target = self
-        toggle.state = notificationsOn ? .on : .off
-        menu.addItem(toggle)
-        item("Sobre o Magen e créditos", #selector(about))
         item("Fechar o ícone (o bloqueio continua)", #selector(quit))
     }
 
     static func todayKey() -> String { let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: Date()) }
 
-    @objc private func showVerseNow() { sendVerse(title: "Um versículo para você") }
-
-    @objc private func toggleNotifications() { notificationsOn.toggle() }
-
-    @objc private func updateNow() {
-        notify_post(Signals.updateRequest)
-        alert("Pedido enviado", "As listas novas chegam em 1 ou 2 minutos. (Para não sobrecarregar, o Magen atende no máximo um pedido a cada 5 minutos.)")
-    }
-
-    @objc private func testSite() {
-        guard let site = askSite("Testar um site", "Digite o endereço, por exemplo: exemplo.com") else { return }
-        switch dnsCheck(site) {
-        case .some(true): alert("🚫 \(site) está bloqueado", "O Magen não deixa este site abrir (ou ele não existe).")
-        case .some(false): alert("✅ \(site) está liberado", "Este site abre normalmente.")
-        case .none: alert("Sem resposta", "O Magen não respondeu. Ele está ligado?")
-        }
-    }
-
-    @objc private func allowSite() {
-        guard let site = askSite("Liberar um site", "Use só para um site que NÃO é adulto e foi bloqueado por engano.\nO Mac vai pedir a senha de administrador.") else { return }
-        runAdmin(["liberar", site], done: "\(site) foi liberado.")
-    }
-
-    @objc private func blockSite() {
-        guard let site = askSite("Bloquear um site a mais", "O site e tudo o que estiver dentro dele serão bloqueados.\nO Mac vai pedir a senha de administrador.") else { return }
-        runAdmin(["bloquear", site], done: "\(site) agora está bloqueado.")
-    }
-
-    @objc private func about() {
-        alert("Magen — escudo",
-              """
-              Bloqueador grátis de sites adultos. Sem conta e sem anúncios.
-              Listas: OISD NSFW, Block List Project e StevenBlack.
-
-              Versículos: \(verseCredit).
-              Bíblia Livre, Copyright © Diego Santos, Mario Sérgio e Marco Teles, fevereiro de 2018. \
-              Licença Creative Commons Atribuição 4.0 Brasil.
-              """)
-    }
-
+    @objc private func openWindow() { mainWindow.show() }
+    @objc private func openSites() { mainWindow.show(tab: .sites) }
+    @objc private func updateFromMenu() { requestUpdate() }
     @objc private func quit() { NSApp.terminate(nil) }
+
+    func requestUpdate() {
+        notify_post(Signals.updateRequest)
+        message("Pedido enviado", "As listas novas chegam em 1 ou 2 minutos. (O Magen atende no máximo um pedido a cada 5 minutos.)")
+    }
 
     // MARK: helpers
 
-    private func alert(_ title: String, _ text: String) {
+    private func message(_ title: String, _ text: String) {
         NSApp.activate(ignoringOtherApps: true)
         let a = NSAlert()
         a.messageText = title
@@ -206,30 +140,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         a.runModal()
     }
 
-    private func askSite(_ title: String, _ text: String) -> String? {
-        NSApp.activate(ignoringOtherApps: true)
-        let a = NSAlert()
-        a.messageText = title
-        a.informativeText = text
-        a.addButton(withTitle: "OK")
-        a.addButton(withTitle: "Cancelar")
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
-        field.placeholderString = "exemplo.com"
-        a.accessoryView = field
-        a.window.initialFirstResponder = field
-        guard a.runModal() == .alertFirstButtonReturn else { return nil }
-        var t = field.stringValue.lowercased().trimmingCharacters(in: .whitespaces)
-        for p in ["https://", "http://"] where t.hasPrefix(p) { t.removeFirst(p.count) }
-        if let slash = t.firstIndex(of: "/") { t = String(t[..<slash]) }
-        guard let d = Domains.normalize(Substring(t)) else {
-            if !t.isEmpty { alert("Endereço inválido", "Digite só o endereço, por exemplo: exemplo.com") }
-            return nil
-        }
-        return d
-    }
-
     /// Asks the Magen service directly. true = blocked, false = allowed, nil = no answer.
-    private func dnsCheck(_ name: String) -> Bool? {
+    func dnsCheck(_ name: String) -> Bool? {
         let q = DNSMessage.buildQuery(id: UInt16.random(in: 1...65000), name: name)
         var a = sockaddr_in()
         a.sin_len = UInt8(MemoryLayout<sockaddr_in>.size); a.sin_family = sa_family_t(AF_INET); a.sin_port = dnsPort.bigEndian
@@ -248,21 +160,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
     }
 
     /// Runs `magen …` as administrator. macOS shows its own password window.
-    private func runAdmin(_ args: [String], done: String) {
-        // `args` only contain command words and a domain checked by Domains.normalize (a-z 0-9 . - _).
+    func runAdmin(_ args: [String], done: String, then: (() -> Void)?) {
+        // `args` only hold fixed command words and domains checked by Domains.normalize (a-z 0-9 . - _).
         let cmd = ([magenCLI] + args).joined(separator: " ")
         let script = "do shell script \"\(cmd)\" with administrator privileges"
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
         p.arguments = ["-e", script]
         let err = Pipe(); p.standardError = err; p.standardOutput = Pipe()
-        do { try p.run() } catch { alert("Não deu certo", error.localizedDescription); return }
+        do { try p.run() } catch { message("Não deu certo", error.localizedDescription); return }
         p.waitUntilExit()
-        if p.terminationStatus == 0 { alert("Feito", done) }
-        else {
+        if p.terminationStatus == 0 {
+            // The service reloads in the background; give it a moment before redrawing.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { then?() }
+        } else {
             let msg = String(decoding: err.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-            if !msg.contains("-128") { alert("Não deu certo", msg) } // -128 = the person clicked Cancel
+            if !msg.contains("-128") { message("Não deu certo", msg) } // -128 = the person clicked Cancel
         }
+    }
+
+    // MARK: test helper (MAGEN_TEST_TAB / MAGEN_TEST_OUT): saves pictures, then quits
+
+    private func runSnapshotTest(_ first: MainWindow.Tab) {
+        let out = URL(fileURLWithPath: env["MAGEN_TEST_OUT"] ?? NSTemporaryDirectory())
+        var tabs = MainWindow.Tab.allCases.filter { $0.rawValue >= first.rawValue }
+        func next() {
+            guard !tabs.isEmpty else {
+                let v = verses.first { $0.ref == "1 Coríntios 10:13" } ?? verses[0]
+                alert.show(v, heading: "Site bloqueado", lockSeconds: 5, snapshotTo: out.appendingPathComponent("janela-versiculo.png"))
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { self.alert.close(); NSApp.terminate(nil) }
+                return
+            }
+            let t = tabs.removeFirst()
+            mainWindow.show(tab: t)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                if let v = self.mainWindow.window.contentView {
+                    snapshot(v, to: out.appendingPathComponent("aba-\(t.rawValue)-\(t.title).png"))
+                }
+                next()
+            }
+        }
+        next()
     }
 }
 

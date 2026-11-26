@@ -2,13 +2,14 @@
 # Compila tudo e monta o Magen.app (ícone da barra de menus) em build/.
 set -euo pipefail
 cd "$(dirname "$0")"
-VERSION="0.2"
+VERSION="0.3"
 
 swift build -c release
 APP="build/Magen.app"
 rm -rf "$APP"   # build/ só tem coisas geradas por este script
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/MagenBar "$APP/Contents/MacOS/MagenBar"
+cp -R Resources/fonts "$APP/Contents/Resources/fonts"   # Archivo (SIL OFL)
 cat > "$APP/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -31,5 +32,6 @@ codesign --force --sign - "$APP"   # assinatura local (sem conta Apple paga)
 
 mkdir -p bin
 cp .build/release/magend .build/release/magen bin/
+rm -rf bin/Magen.app   # bin/ só tem cópias geradas por este script
 cp -R "$APP" bin/
 echo "Pronto: $APP e bin/"

@@ -22,20 +22,35 @@ Isso vale para **todos os navegadores e apps**.
   navegadores e a Retransmissão Privada do iCloud.
 - Quando o Magen é desligado, o DNS do Mac volta a ser o que era antes.
 
-## Ícone na barra de menus 🛡️
+## O app Magen 🛡️
 
-Depois de instalado, um escudo aparece no topo da tela. Clicando nele você vê:
-se está protegendo, quantos bloqueios houve hoje, e botões para testar,
-liberar ou bloquear um site e atualizar as listas.
+Depois de instalado, um escudo aparece no topo da tela. Clique nele e escolha
+**Abrir o Magen** (ou abra o Magen em Aplicativos). A janela tem o mesmo estilo
+do Treco, em vermelho, com cinco abas:
 
-Quando um site adulto é bloqueado, aparece um **balão com um versículo
-bíblico** no canto da tela, sem mostrar o nome do site. Ele aparece no máximo
-uma vez por minuto e pode ser desligado no menu. Os bloqueios automáticos
-"anti-burla" não geram aviso.
+- **Início:** se está protegendo, bloqueios de hoje e do total, sites na lista.
+- **Sites:** testar, liberar ou bloquear um site, e ver os que você mudou.
+- **Versículos:** ligar ou desligar a janela, quanto tempo até poder fechar,
+  intervalo entre janelas e uma prévia.
+- **Proteção:** bloquear ou não a Retransmissão Privada do iCloud e o "DNS
+  seguro" dos navegadores.
+- **Sobre:** créditos.
+
+Quando um site adulto é bloqueado, **a tela fica vermelha** e aparece um cartão
+no centro com uma frase e um versículo, por exemplo "Você pode fugir disso."
+com 1 Coríntios 10:13. O botão só funciona depois de alguns segundos. O nome do
+site nunca aparece, e os bloqueios automáticos "anti-burla" não abrem a janela.
+
+**Aviso da Retransmissão Privada:** o Magen bloqueia a Retransmissão Privada
+do iCloud, porque sem isso o Safari passa por fora dele. Por isso o Mac mostra
+uma vez em cada rede o aviso "não é compatível com a Retransmissão Privada".
+Escolha **"Usar sem a Retransmissão Privada"**. Dá para mudar isso na aba
+Proteção.
 
 Versículos: **Bíblia Livre (BLIVRE)**, Copyright © Diego Santos, Mario Sérgio
 e Marco Teles, fevereiro de 2018, [Licença Creative Commons Atribuição 4.0
-Brasil](http://creativecommons.org/licenses/by/4.0/br/).
+Brasil](http://creativecommons.org/licenses/by/4.0/br/). Os títulos acima dos
+versículos são do Magen. Fonte: Archivo (SIL Open Font License).
 
 ## Velocidade
 
@@ -55,7 +70,9 @@ Dê dois cliques em **`instalar.command`** e digite a senha do Mac.
 | `magen status` | mostra se está ligado e quantos sites bloqueia |
 | `magen testar site.com` | diz se um site está bloqueado |
 | `sudo magen liberar site.com` | desbloqueia um site bloqueado por engano |
-| `sudo magen desfazer site.com` | tira o site da lista de liberados |
+| `sudo magen desfazer site.com` | desfaz um "liberar" ou "bloquear" |
+| `sudo magen retransmissao sim\|nao` | bloqueia (ou não) a Retransmissão Privada |
+| `sudo magen antiburla sim\|nao` | bloqueia (ou não) o "DNS seguro" dos navegadores |
 | `sudo magen bloquear site.com` | bloqueia um site a mais |
 | `sudo magen atualizar` | baixa as listas novas agora |
 

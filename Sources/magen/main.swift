@@ -16,9 +16,11 @@ func help() {
       magen status              mostra se está ligado e quantos sites bloqueia
       magen testar <site>       diz se um site está bloqueado
       magen liberar <site>      desbloqueia um site (bloqueio errado)
-      magen desfazer <site>     tira o site da lista de liberados
+      magen desfazer <site>     tira o site das listas de liberados e bloqueados a mais
       magen bloquear <site>     bloqueia um site a mais
       magen atualizar           baixa as listas novas agora
+      magen antiburla sim|nao   bloqueia o "DNS seguro" dos navegadores
+      magen retransmissao sim|nao  bloqueia a Retransmissão Privada do iCloud
 
     Os comandos que mudam algo precisam de "sudo" (senha de administrador).
     """)
@@ -100,10 +102,14 @@ case "liberar":
     editConfig { c in if !c.allow.contains(s) { c.allow.append(s) }; c.block.removeAll { $0 == s } }
 case "desfazer":
     guard let s = site else { print("Diga o site."); exit(1) }
-    editConfig { c in c.allow.removeAll { $0 == s } }
+    editConfig { c in c.allow.removeAll { $0 == s }; c.block.removeAll { $0 == s } }
 case "bloquear":
     guard let s = site else { print("Diga o site. Exemplo: magen bloquear exemplo.com"); exit(1) }
     editConfig { c in if !c.block.contains(s) { c.block.append(s) }; c.allow.removeAll { $0 == s } }
+case "antiburla", "retransmissao":
+    guard args.count > 1, ["sim", "nao", "não"].contains(args[1]) else { print("Use: magen \(cmd) sim  ou  magen \(cmd) nao"); exit(1) }
+    let on = args[1] == "sim"
+    editConfig { c in if cmd == "antiburla" { c.antiBypass = on } else { c.blockPrivateRelay = on } }
 case "atualizar":
     if signalDaemon(SIGUSR1) { print("Pedido enviado. As listas novas chegam em 1 ou 2 minutos (veja com: magen status).") }
 default:

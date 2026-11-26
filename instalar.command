@@ -73,7 +73,7 @@ cat > "$BAR_PLIST" <<PLISTEND
 <dict>
   <key>Label</key><string>$BAR_LABEL</string>
   <key>ProgramArguments</key>
-  <array><string>/Applications/Magen.app/Contents/MacOS/MagenBar</string></array>
+  <array><string>/Applications/Magen.app/Contents/MacOS/MagenBar</string><string>--login</string></array>
   <key>RunAtLoad</key><true/>
   <key>LimitLoadToSessionType</key><string>Aqua</string>
 </dict>

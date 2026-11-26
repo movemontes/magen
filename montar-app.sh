@@ -2,7 +2,7 @@
 # Compila tudo e monta o Magen.app (ícone da barra de menus) em build/.
 set -euo pipefail
 cd "$(dirname "$0")"
-VERSION="0.3"
+VERSION="0.4"
 
 swift build -c release
 APP="build/Magen.app"
@@ -10,6 +10,9 @@ rm -rf "$APP"   # build/ só tem coisas geradas por este script
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/MagenBar "$APP/Contents/MacOS/MagenBar"
 cp -R Resources/fonts "$APP/Contents/Resources/fonts"   # Archivo (SIL OFL)
+# Ícone do app (Dock e Finder), desenhado pelo próprio Magen
+.build/release/MagenBar --make-iconset build/AppIcon.iconset
+iconutil -c icns build/AppIcon.iconset -o "$APP/Contents/Resources/AppIcon.icns"
 cat > "$APP/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -24,6 +27,7 @@ cat > "$APP/Contents/Info.plist" <<EOF
   <key>CFBundleVersion</key><string>$VERSION</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSUIElement</key><true/>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>NSHumanReadableCopyright</key><string>Magen · MIT · Versículos: Bíblia Livre (BLIVRE) CC BY 4.0</string>
 </dict>
 </plist>

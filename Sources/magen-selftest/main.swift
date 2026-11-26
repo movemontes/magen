@@ -42,6 +42,15 @@ var cfg2 = MagenConfig(); cfg2.blockPrivateRelay = false
 let f2 = Filter(); f2.rebuild(listDomains: ["adult.test"], config: cfg2)
 check(!f2.isBlocked("mask.icloud.com") && f2.isBlocked("dns.google"), "Retransmissão Privada liberada sem desligar o resto do anti-burla")
 
+// Unblocking is slow on purpose
+var cfg3 = MagenConfig()
+let t0 = Date()
+cfg3.pendingAllow = [PendingAllow(domain: "cedo.test", at: t0.addingTimeInterval(-1)),
+                     PendingAllow(domain: "tarde.test", at: t0.addingTimeInterval(Unblock.delay))]
+let moved = Unblock.applyDue(&cfg3, now: t0)
+check(moved == ["cedo.test"] && cfg3.allow == ["cedo.test"] && cfg3.pendingAllow.count == 1, "liberação só vale depois da espera")
+check(Unblock.isObviouslyAdult("www.pornhub.com") && !Unblock.isObviouslyAdult("sussex.ac.uk"), "nomes adultos nunca podem ser liberados")
+
 // DNS messages
 let q = DNSMessage.buildQuery(id: 0x1234, name: "Www.Adult.Test")
 let pq = DNSMessage.parseQuery(q)

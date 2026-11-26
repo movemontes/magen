@@ -15,7 +15,7 @@ func help() {
 
       magen status              mostra se está ligado e quantos sites bloqueia
       magen testar <site>       diz se um site está bloqueado
-      magen liberar <site>      desbloqueia um site (bloqueio errado)
+      magen liberar <site>      pede para desbloquear um site (só vale 1 hora depois)
       magen desfazer <site>     tira o site das listas de liberados e bloqueados a mais
       magen bloquear <site>     bloqueia um site a mais
       magen atualizar           baixa as listas novas agora
@@ -99,10 +99,22 @@ case "testar":
     }
 case "liberar":
     guard let s = site else { print("Diga o site. Exemplo: magen liberar exemplo.com"); exit(1) }
-    editConfig { c in if !c.allow.contains(s) { c.allow.append(s) }; c.block.removeAll { $0 == s } }
+    if Unblock.isObviouslyAdult(s) {
+        print("🚫 \(s) tem nome de site adulto e não pode ser liberado."); exit(3)
+    }
+    let cfgNow = MagenConfig.load(from: Paths.config(dir))
+    if cfgNow.allow.contains(s) { print("\(s) já está liberado."); exit(0) }
+    let when = cfgNow.pendingAllow.first { $0.domain == s }?.at ?? Date().addingTimeInterval(Unblock.delay)
+    editConfig { c in
+        c.pendingAllow.removeAll { $0.domain == s }
+        c.pendingAllow.append(PendingAllow(domain: s, at: when))
+        c.block.removeAll { $0 == s }
+    }
+    print("⏳ \(s) será liberado às \(when.formatted(date: .omitted, time: .shortened)) (daqui a \(Int(Unblock.delay / 60)) minutos).")
+    print("   Mudou de ideia? magen desfazer \(s)")
 case "desfazer":
     guard let s = site else { print("Diga o site."); exit(1) }
-    editConfig { c in c.allow.removeAll { $0 == s }; c.block.removeAll { $0 == s } }
+    editConfig { c in c.allow.removeAll { $0 == s }; c.block.removeAll { $0 == s }; c.pendingAllow.removeAll { $0.domain == s } }
 case "bloquear":
     guard let s = site else { print("Diga o site. Exemplo: magen bloquear exemplo.com"); exit(1) }
     editConfig { c in if !c.block.contains(s) { c.block.append(s) }; c.allow.removeAll { $0 == s } }

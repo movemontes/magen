@@ -24,6 +24,7 @@ protocol MagenActions: AnyObject {
     func readState() -> MagenState?
     var serviceIsOn: Bool { get }
     func showVersePreview()
+    func showDonate()
     func requestUpdate()
     func dnsCheck(_ name: String) -> Bool?
     func runAdmin(_ args: [String], done: String, then: (() -> Void)?)
@@ -77,7 +78,7 @@ final class MainWindow: NSObject, NSWindowDelegate {
 
     func show(tab: Tab? = nil) {
         if let tab { select(tab) } else { reload() }
-        NSApp.activate(ignoringOtherApps: true)
+        Dock.show()
         window.makeKeyAndOrderFront(nil)
         refreshTimer?.invalidate()
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
@@ -86,7 +87,7 @@ final class MainWindow: NSObject, NSWindowDelegate {
         }
     }
 
-    func windowWillClose(_ notification: Notification) { refreshTimer?.invalidate() }
+    func windowWillClose(_ notification: Notification) { refreshTimer?.invalidate(); Dock.hide() }
 
     // MARK: layout
 
@@ -263,7 +264,7 @@ final class MainWindow: NSObject, NSWindowDelegate {
             panel.addSubview(b)
         }
         y += 40 + 10
-        let result = Theme.label(siteResult.isEmpty ? "Liberar: só para um site que NÃO é adulto e foi bloqueado por engano. Liberar e bloquear pedem a senha do Mac." : siteResult,
+        let result = Theme.label(siteResult.isEmpty ? "Liberar é só para site que NÃO é adulto: pede uma frase, a senha do Mac, e só vale \(Int(Unblock.delay / 60)) minutos depois." : siteResult,
                                  size: 12, bold: !siteResult.isEmpty, color: siteResult.hasPrefix("🚫") ? Theme.red : Theme.dark, wrap: contentW)
         y = add(result, y: y, w: contentW) + 18
 
@@ -288,7 +289,8 @@ final class MainWindow: NSObject, NSWindowDelegate {
                 l.lineBreakMode = .byTruncatingMiddle
                 l.frame = NSRect(x: 10, y: 7, width: colW - 50, height: 16)
                 let x2 = BoxButton("×") { [weak self] in
-                    self?.app?.runAdmin(["desfazer", item], done: "\(item) voltou ao normal.") { self?.reload() }
+                    let domain = item.hasPrefix("⏳ ") ? String(item.dropFirst(2).split(separator: " ").first ?? "") : item
+                    self?.app?.runAdmin(["desfazer", domain], done: "") { self?.reload() }
                 }
                 x2.fontSize = 14
                 x2.frame = NSRect(x: colW - 30, y: 0, width: 30, height: 30)
@@ -302,7 +304,8 @@ final class MainWindow: NSObject, NSWindowDelegate {
                 panel.addSubview(more)
             }
         }
-        list("Liberados por você", cfg.allow, x: 20)
+        let pending = cfg.pendingAllow.map { "⏳ \($0.domain) — às \($0.at.formatted(date: .omitted, time: .shortened))" }
+        list("Liberados por você", pending + cfg.allow, x: 20)
         list("Bloqueados a mais", cfg.block, x: 20 + colW + 16)
     }
 
@@ -329,11 +332,57 @@ final class MainWindow: NSObject, NSWindowDelegate {
 
     private func changeSite(_ cmd: String) {
         guard let site = typedSite() else { return }
-        app?.runAdmin([cmd, site], done: cmd == "liberar" ? "\(site) foi liberado." : "\(site) agora está bloqueado.") { [weak self] in
-            self?.siteResult = cmd == "liberar" ? "✅ \(site) foi liberado." : "🚫 \(site) agora está bloqueado."
+        if cmd == "liberar" {
+            guard confirmUnblock(site) else { return }
+            let when = Date().addingTimeInterval(Unblock.delay).formatted(date: .omitted, time: .shortened)
+            app?.runAdmin(["liberar", site], done: "") { [weak self] in
+                self?.siteResult = "⏳ \(site) será liberado às \(when). Até lá, continua bloqueado."
+                self?.siteField.stringValue = ""
+                self?.reload()
+            }
+            return
+        }
+        app?.runAdmin([cmd, site], done: "") { [weak self] in
+            self?.siteResult = "🚫 \(site) agora está bloqueado."
             self?.siteField.stringValue = ""
             self?.reload()
         }
+    }
+
+    /// Unblocking is hard on purpose: obvious adult names are refused, the person must
+    /// type a sentence, then the Mac password, and the site only opens 1 hour later.
+    private func confirmUnblock(_ site: String) -> Bool {
+        if Unblock.isObviouslyAdult(site) {
+            siteResult = "🚫 \(site) tem nome de site adulto. Ele não pode ser liberado."
+            reload(); return false
+        }
+        let minutes = Int(Unblock.delay / 60)
+        let a = NSAlert()
+        a.alertStyle = .warning
+        a.messageText = "Liberar \(site)?"
+        a.informativeText = """
+        Liberar é só para um site que NÃO é adulto e foi bloqueado por engano.
+
+        O site só vai abrir daqui a \(minutes) minutos. Se for um momento de tentação, esse tempo é para você respirar e desistir. Dá para cancelar a qualquer hora na aba Sites.
+
+        Para continuar, digite exatamente:
+        \(Unblock.sentence)
+        """
+        a.addButton(withTitle: "Pedir liberação")
+        a.addButton(withTitle: "Desistir")
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
+        field.placeholderString = Unblock.sentence
+        a.accessoryView = field
+        a.window.initialFirstResponder = field
+        a.buttons.first?.isEnabled = true
+        NSApp.activate(ignoringOtherApps: true)
+        guard a.runModal() == .alertFirstButtonReturn else { return false }
+        let typed = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard typed == Unblock.sentence else {
+            siteResult = "A frase não confere. Nada foi liberado."
+            reload(); return false
+        }
+        return true
     }
 
     // MARK: Versículos
@@ -409,14 +458,27 @@ final class MainWindow: NSObject, NSWindowDelegate {
         let sub = Theme.label("“escudo” em hebraico · versão \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev")", size: 13, color: Theme.red)
         sub.font = Theme.font(13, bold: true)
         y = add(sub, y: y + 2) + 18
+        let made = Theme.label("Feito por \(Author.name), de graça, para quem quer vencer essa luta.", size: 14, bold: true, wrap: contentW)
+        y = add(made, y: y, w: contentW) + 10
         let text = Theme.label("""
         Bloqueador grátis de sites adultos para Mac. Sem conta, sem anúncios, sem coletar nada.
 
         Listas de bloqueio: OISD NSFW, Block List Project e StevenBlack (baixadas direto da fonte).
-        Versículos: Bíblia Livre (BLIVRE), CC BY 4.0 Brasil.
-        Fonte: Archivo, SIL Open Font License.
-        Código: licença MIT.
-        """, size: 12, wrap: contentW)
-        add(text, y: y, w: contentW)
+        Versículos: Bíblia Livre (BLIVRE), CC BY 4.0 Brasil. Fonte: Archivo, SIL Open Font License. Código: licença MIT.
+        """, size: 12, color: Theme.dark, wrap: contentW)
+        y = add(text, y: y, w: contentW) + 18
+
+        let gap: CGFloat = 10, bw = (contentW - gap) / 2
+        let donate = BoxButton("Apoie o Magen (Pix)", symbol: "heart") { [weak self] in self?.app?.showDonate() }
+        donate.accent = true
+        let update = BoxButton("Procurar atualização", symbol: "arrow.down.circle") { Updates.check(manual: true) }
+        donate.frame = NSRect(x: 20, y: y, width: bw, height: 56)
+        update.frame = NSRect(x: 20 + bw + gap, y: y, width: bw, height: 56)
+        panel.addSubview(donate); panel.addSubview(update)
+        y += 56 + 14
+        let auto = CheckRow(title: "Procurar atualização sozinho", detail: "Em breve: quando o Magen estiver no GitHub, ele avisa quando sair uma versão nova.",
+                            isOn: Updates.autoCheck, width: contentW)
+        auto.onToggle = { [weak self] v in Updates.autoCheck = v; self?.reload() }
+        add(auto, y: y)
     }
 }

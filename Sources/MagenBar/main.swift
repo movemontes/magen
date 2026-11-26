@@ -17,6 +17,11 @@ if CommandLine.arguments.contains("--relay-status") {
     print(PrivateRelay.isOn().map { $0 ? "ligada" : "desligada" } ?? "desconhecida")
     exit(0)
 }
+// Used by montar-app.sh: draws the app icon into a .iconset folder and exits.
+if let i = CommandLine.arguments.firstIndex(of: "--make-iconset"), i + 1 < CommandLine.arguments.count {
+    AppIconArt.writeIconset(to: URL(fileURLWithPath: CommandLine.arguments[i + 1]))
+    exit(0)
+}
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, MagenActions {
     private var statusItem: NSStatusItem!
@@ -27,9 +32,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, MagenA
     private var lastVerseIndex = -1
     private let alert = VerseAlert()
     private lazy var mainWindow = MainWindow(app: self)
+    private let donate = DonatePopup()
 
     func applicationDidFinishLaunching(_ n: Notification) {
         Theme.registerFont()
+        buildMainMenu()
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         menu.delegate = self
         statusItem.menu = menu
@@ -46,8 +53,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, MagenA
         } else if !startedAtLogin || (PrivateRelay.isOn() == true && serviceIsOn) {
             // Opened by the person, or Private Relay needs attention: show the window.
             mainWindow.show()
+            // First time: the donation note, like Treco's welcome.
+            if !DonatePopup.alreadySeen && !startedAtLogin {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { self.donate.show() }
+            }
         }
+        if Updates.autoCheck { Updates.check(manual: false) }
     }
+
+    // MARK: top menu actions
+
+    @objc func menuAbout() { mainWindow.show(tab: .sobre) }
+    @objc func menuDonate() { donate.show() }
+    func showDonate() { donate.show() }
+    @objc func menuUpdate() { Updates.check(manual: true) }
+    @objc func menuSettings() { mainWindow.show(tab: .versiculos) }
+    @objc func menuTab(_ sender: NSMenuItem) { mainWindow.show(tab: MainWindow.Tab(rawValue: sender.tag)) }
+    @objc func menuSites() { mainWindow.show(tab: .sites) }
+    @objc func menuUpdateLists() { requestUpdate() }
+    @objc func menuVerse() { showVersePreview() }
+    @objc func menuRelay() { mainWindow.show(tab: .protecao) }
+    @objc func menuHelp() { mainWindow.show(tab: .protecao) }
 
     /// Double-clicking Magen.app again while it runs opens the window.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -125,6 +151,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, MagenA
         item("Testar ou liberar um site…", #selector(openSites))
         item("Atualizar as listas agora", #selector(updateFromMenu))
         menu.addItem(.separator())
+        item("Apoie o Magen (Pix)…", #selector(menuDonate))
+        item("Procurar atualização…", #selector(menuUpdate))
+        item("Sobre o Magen", #selector(menuAbout))
+        menu.addItem(.separator())
         item("Fechar o ícone (o bloqueio continua)", #selector(quit))
     }
 
@@ -195,9 +225,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, MagenA
     private func runSnapshotTest(_ first: MainWindow.Tab) {
         let out = URL(fileURLWithPath: env["MAGEN_TEST_OUT"] ?? NSTemporaryDirectory())
         savePNG(iconSheet(), to: out.appendingPathComponent("icones.png"))
+        savePNG(AppIconArt.image(size: 256), to: out.appendingPathComponent("icone-app.png"))
+        for top in NSApp.mainMenu?.items ?? [] {
+            print("MENU \(top.title): " + (top.submenu?.items.map { $0.isSeparatorItem ? "—" : $0.title }.joined(separator: " | ") ?? ""))
+        }
         var tabs = MainWindow.Tab.allCases.filter { $0.rawValue >= first.rawValue }
         func next() {
             guard !tabs.isEmpty else {
+                self.donate.show()
+                if let w = NSApp.windows.first(where: { $0.title == "Apoie o Magen" }), let c = w.contentView {
+                    snapshot(c, to: out.appendingPathComponent("doacao.png"))
+                }
+                self.donate.close()
                 let v = verses.first { $0.ref == "1 Coríntios 10:13" } ?? verses[0]
                 alert.show(v, heading: "Site bloqueado", lockSeconds: 5, snapshotTo: out.appendingPathComponent("janela-versiculo.png"))
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { self.alert.close(); NSApp.terminate(nil) }

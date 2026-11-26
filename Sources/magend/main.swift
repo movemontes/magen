@@ -177,6 +177,16 @@ let ticker = DispatchSource.makeTimerSource(queue: .global())
 ticker.schedule(deadline: .now() + 30, repeating: 30)
 var ticks = 0
 ticker.setEventHandler {
+    // Unblock requests whose 1-hour wait is over.
+    updateQueue.async {
+        var c = MagenConfig.load(from: Paths.config(dir))
+        let moved = Unblock.applyDue(&c)
+        guard !moved.isEmpty else { return }
+        try? c.save(to: Paths.config(dir))
+        config = c
+        filter.rebuild(listDomains: readCache(), config: config)
+        log("Liberado(s) depois da espera: \(moved.joined(separator: ", "))")
+    }
     if manageSystemDNS {
         let changed = systemDNS.enforce()
         if !changed.isEmpty { log("DNS tinha sido mudado; apontei de novo para o Magen em: \(changed.joined(separator: ", "))") }

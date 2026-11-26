@@ -7,6 +7,8 @@ public struct MagenConfig: Codable {
     public var lists: [String] = MagenConfig.defaultLists
     /// Sites the person chose to unblock (they and their subdomains).
     public var allow: [String] = []
+    /// Sites asked to be unblocked; each one only becomes "allowed" after the wait.
+    public var pendingAllow: [PendingAllow] = []
     /// Extra sites the person chose to block (they and their subdomains).
     public var block: [String] = []
     /// Block tricks that skip Magen (browser "secure DNS", iCloud Private Relay).
@@ -31,6 +33,7 @@ public struct MagenConfig: Codable {
         upstream = try c.decodeIfPresent([String].self, forKey: .upstream) ?? d.upstream
         lists = try c.decodeIfPresent([String].self, forKey: .lists) ?? d.lists
         allow = try c.decodeIfPresent([String].self, forKey: .allow) ?? d.allow
+        pendingAllow = try c.decodeIfPresent([PendingAllow].self, forKey: .pendingAllow) ?? d.pendingAllow
         block = try c.decodeIfPresent([String].self, forKey: .block) ?? d.block
         antiBypass = try c.decodeIfPresent(Bool.self, forKey: .antiBypass) ?? d.antiBypass
         blockPrivateRelay = try c.decodeIfPresent(Bool.self, forKey: .blockPrivateRelay) ?? d.blockPrivateRelay
@@ -47,6 +50,39 @@ public struct MagenConfig: Codable {
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         try enc.encode(self).write(to: url, options: .atomic)
+    }
+}
+
+public struct PendingAllow: Codable, Equatable {
+    public var domain: String
+    /// When it becomes allowed.
+    public var at: Date
+    public init(domain: String, at: Date) { self.domain = domain; self.at = at }
+}
+
+/// Rules that make unblocking a site hard on purpose.
+public enum Unblock {
+    /// Wait between asking and the site really opening.
+    public static let delay: TimeInterval = 60 * 60
+    /// The exact sentence the person must type in the app.
+    public static let sentence = "este site não é pornográfico"
+
+    /// Names that are obviously adult: these can never be unblocked.
+    private static let words = ["porn", "xxx", "xvideo", "xnxx", "hentai", "onlyfans", "xhamster", "redtube",
+                                "youporn", "brazzers", "chaturbate", "spankbang", "stripchat", "camsoda",
+                                "bongacams", "livejasmin", "fansly", "rule34", "nhentai", "pornhub", "erome"]
+    public static func isObviouslyAdult(_ domain: String) -> Bool {
+        let d = domain.lowercased()
+        return words.contains { d.contains($0) }
+    }
+
+    /// Moves the sites whose wait is over from `pendingAllow` to `allow`. Returns the moved ones.
+    public static func applyDue(_ c: inout MagenConfig, now: Date = Date()) -> [String] {
+        let due = c.pendingAllow.filter { $0.at <= now }.map(\.domain)
+        guard !due.isEmpty else { return [] }
+        c.pendingAllow.removeAll { $0.at <= now }
+        for d in due where !c.allow.contains(d) { c.allow.append(d) }
+        return due
     }
 }
 

@@ -182,6 +182,10 @@ ticker.setEventHandler {
         if !changed.isEmpty { log("DNS tinha sido mudado; apontei de novo para o Magen em: \(changed.joined(separator: ", "))") }
     }
     writeState()
+    let fails = server.takeFailureCounts()
+    if fails.failed > 0 || fails.dropped > 0 {
+        log("Atenção: nos últimos 30 s, \(fails.failed) perguntas ficaram sem resposta de \(config.upstream.joined(separator: "/")) e \(fails.dropped) foram descartadas por excesso. (Internet fora do ar?)")
+    }
     ticks += 1
     if allowUpdates && ticks % 20 == 0 && listsAreOld() { updateLists(reason: "agendada") }
 }

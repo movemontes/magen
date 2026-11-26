@@ -67,6 +67,9 @@ class FlippedView: NSView {
     override var isFlipped: Bool { true }
     var fill: NSColor?
     var border: NSColor?
+    /// Mouse pointer shown over this view (the Magen arrow), if set.
+    var cursor: NSCursor? { didSet { window?.invalidateCursorRects(for: self) } }
+    override func resetCursorRects() { if let cursor { addCursorRect(bounds, cursor: cursor) } }
     override func draw(_ dirtyRect: NSRect) {
         if let fill { fill.setFill(); bounds.fill() }
         if let border {
@@ -104,7 +107,7 @@ final class BoxButton: NSView {
     var title: String { didSet { needsDisplay = true } }
     var symbolName: String?
     var selected = false { didSet { needsDisplay = true } }
-    var enabled = true { didSet { needsDisplay = true } }
+    var enabled = true { didSet { needsDisplay = true; window?.invalidateCursorRects(for: self) } }
     var accent = false { didSet { needsDisplay = true } } // red fill (main action)
     var fontSize: CGFloat = 12
     var onClick: (() -> Void)?
@@ -130,7 +133,7 @@ final class BoxButton: NSView {
         if pressed && inside && enabled { onClick?() }
         pressed = false
     }
-    override func resetCursorRects() { if enabled { addCursorRect(bounds, cursor: .pointingHand) } }
+    override func resetCursorRects() { addCursorRect(bounds, cursor: enabled ? Cursors.pressCursor : Cursors.arrowCursor) }
 
     override func draw(_ dirtyRect: NSRect) {
         let back: NSColor, fore: NSColor

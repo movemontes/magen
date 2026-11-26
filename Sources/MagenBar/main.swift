@@ -63,9 +63,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, MagenA
 
     private func refreshIcon() {
         let on = serviceIsOn
-        let img = NSImage(systemSymbolName: on ? "shield.lefthalf.filled" : "shield.slash",
-                          accessibilityDescription: on ? "Magen ligado" : "Magen desligado")
-        img?.isTemplate = true
+        let img = Icons.buckler(size: 18, off: !on)
+        img.accessibilityDescription = on ? "Magen ligado" : "Magen desligado"
         statusItem.button?.image = img
         statusItem.button?.toolTip = on ? "Magen: protegendo" : "Magen: desligado"
     }
@@ -183,6 +182,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, MagenA
 
     private func runSnapshotTest(_ first: MainWindow.Tab) {
         let out = URL(fileURLWithPath: env["MAGEN_TEST_OUT"] ?? NSTemporaryDirectory())
+        savePNG(iconSheet(), to: out.appendingPathComponent("icones.png"))
         var tabs = MainWindow.Tab.allCases.filter { $0.rawValue >= first.rawValue }
         func next() {
             guard !tabs.isEmpty else {
@@ -202,6 +202,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, MagenA
         }
         next()
     }
+}
+
+/// Test picture: menu bar icons (light and dark bar, on and off) and the two pointers, enlarged.
+private func iconSheet() -> NSImage {
+    NSImage(size: NSSize(width: 520, height: 140), flipped: true) { _ in
+        Theme.paper.setFill(); NSRect(x: 0, y: 0, width: 520, height: 140).fill()
+        let bars: [(NSColor, NSColor)] = [(NSColor(white: 0.93, alpha: 1), .black), (NSColor(white: 0.15, alpha: 1), .white)]
+        for (i, bar) in bars.enumerated() {
+            bar.0.setFill(); NSRect(x: 10, y: 10 + CGFloat(i) * 60, width: 200, height: 50).fill()
+            for (j, off) in [false, true].enumerated() {
+                Icons.buckler(size: 36, off: off).tinted(bar.1)
+                    .draw(in: NSRect(x: 30 + CGFloat(j) * 90, y: 17 + CGFloat(i) * 60, width: 36, height: 36))
+            }
+        }
+        Icons.bucklerPreview(size: 110).draw(in: NSRect(x: 225, y: 15, width: 110, height: 110))
+        for (k, c) in [Cursors.arrowCursor, Cursors.pressCursor].enumerated() {
+            c.image.draw(in: NSRect(x: 360 + CGFloat(k) * 80, y: 30, width: 72, height: 72))
+        }
+        return true
+    }
+}
+
+private func savePNG(_ img: NSImage, to url: URL) {
+    guard let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff) else { return }
+    try? rep.representation(using: .png, properties: [:])?.write(to: url)
 }
 
 let app = NSApplication.shared

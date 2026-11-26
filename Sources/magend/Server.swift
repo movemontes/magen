@@ -6,7 +6,21 @@ final class DNSServer {
     let filter: Filter
     var upstream: [String]
     private let work = DispatchQueue(label: "magen.work", attributes: .concurrent)
-    private let limiter = DispatchSemaphore(value: 256) // at most 256 lookups at once
+    private let limiter = DispatchSemaphore(value: 48) // lookups at once (each one waits on the network)
+    private let cacheLock = NSLock()
+    /// Short answer cache: same question within 30 s → same answer, without asking again.
+    private var cache: [ArraySlice<UInt8>: (answer: [UInt8], until: Date)] = [:]
+    private let failLock = NSLock()
+    private(set) var upstreamFailures = 0
+    private(set) var droppedBusy = 0
+
+    /// Returns and resets the failure counters (for the log).
+    func takeFailureCounts() -> (failed: Int, dropped: Int) {
+        failLock.lock(); defer { failLock.unlock() }
+        let r = (upstreamFailures, droppedBusy)
+        upstreamFailures = 0; droppedBusy = 0
+        return r
+    }
     private let counterLock = NSLock()
     private(set) var blockedCount = 0
     /// Called (on a work thread) each time an adult site is blocked.
@@ -32,7 +46,27 @@ final class DNSServer {
         case .allowed:
             break
         }
-        return forward(query, overTCP: overTCP) ?? DNSMessage.failureResponse(query: query, question: q)
+        let key = query[2...] // the question without its ID
+        cacheLock.lock()
+        if let hit = cache[key], hit.until > Date() {
+            cacheLock.unlock()
+            var r = hit.answer
+            r[0] = query[0]; r[1] = query[1]
+            return r
+        }
+        cacheLock.unlock()
+        guard let r = forward(query, overTCP: overTCP) else {
+            failLock.lock(); upstreamFailures += 1; failLock.unlock()
+            return DNSMessage.failureResponse(query: query, question: q)
+        }
+        // Keep good answers and "does not exist" answers; never keep truncated ones.
+        if let rc = DNSMessage.rcode(r), (rc == 0 || rc == 3), r.count > 3, r[2] & 0x02 == 0 {
+            cacheLock.lock()
+            if cache.count > 20_000 { cache.removeAll(keepingCapacity: true) }
+            cache[key] = (r, Date().addingTimeInterval(30))
+            cacheLock.unlock()
+        }
+        return r
     }
 
     private func forward(_ query: [UInt8], overTCP: Bool) -> [UInt8]? {
@@ -69,7 +103,12 @@ final class DNSServer {
                 if n < 12 { continue }
                 let query = Array(buf[0..<n])
                 let client = from
-                limiter.wait()
+                // If everything is busy (slow network), drop this one instead of freezing:
+                // the Mac asks again by itself in a moment.
+                if limiter.wait(timeout: .now() + 0.3) == .timedOut {
+                    failLock.lock(); droppedBusy += 1; failLock.unlock()
+                    continue
+                }
                 work.async { [self] in
                     defer { limiter.signal() }
                     guard let resp = answer(query, overTCP: false) else { return }
@@ -98,7 +137,7 @@ final class DNSServer {
             while true {
                 let c = accept(fd, nil, nil)
                 if c < 0 { continue }
-                limiter.wait()
+                if limiter.wait(timeout: .now() + 2) == .timedOut { close(c); continue }
                 work.async { [self] in
                     defer { close(c); limiter.signal() }
                     setTimeouts(c, seconds: 10)

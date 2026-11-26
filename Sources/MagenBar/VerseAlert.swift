@@ -41,13 +41,14 @@ final class VerseAlert {
                 if [36, 76, 53, 49].contains(Int(e.keyCode)) { self.tryClose(); return true }
                 return false
             }
+            let content = FlippedView(frame: NSRect(origin: .zero, size: screen.frame.size))
+            content.cursor = Cursors.arrowCursor
+            w.contentView = content
             if screen == main {
                 let card = buildCard(v, heading: heading, width: min(680, screen.frame.width - 80))
-                let content = FlippedView(frame: NSRect(origin: .zero, size: screen.frame.size))
                 card.setFrameOrigin(NSPoint(x: (screen.frame.width - card.frame.width) / 2,
                                             y: (screen.frame.height - card.frame.height) / 2))
                 content.addSubview(card)
-                w.contentView = content
                 if let png {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { snapshot(card, to: png); print("Imagem da janela salva em \(png.path)") }
                 }

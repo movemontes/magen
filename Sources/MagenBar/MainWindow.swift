@@ -67,6 +67,7 @@ final class MainWindow: NSObject, NSWindowDelegate {
         w.appearance = NSAppearance(named: .aqua) // always the light Treco look
         root.frame = NSRect(origin: .zero, size: Self.size)
         root.fill = Theme.paper
+        root.cursor = Cursors.arrowCursor
         w.contentView = root
         window = w
         buildChrome()

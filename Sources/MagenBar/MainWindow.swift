@@ -25,6 +25,8 @@ protocol MagenActions: AnyObject {
     var serviceIsOn: Bool { get }
     func showVersePreview()
     func showDonate()
+    func turnOn()
+    func turnOff()
     func requestUpdate()
     func dnsCheck(_ name: String) -> Bool?
     func runAdmin(_ args: [String], done: String, then: (() -> Void)?)
@@ -181,10 +183,22 @@ final class MainWindow: NSObject, NSWindowDelegate {
         icon.frame = NSRect(x: 22, y: 22, width: 52, height: 52)
         let big = Theme.label(on ? "PROTEGENDO" : "DESLIGADO", size: 28, bold: true, color: Theme.paper)
         big.frame = NSRect(x: 92, y: 20, width: contentW - 110, height: big.fittingSize.height)
+        let installed = Service.isInstalled
         let small = Theme.label(on ? "Sites adultos não abrem neste Mac." :
-                                    "Para ligar, dê dois cliques em instalar.command.", size: 12, color: Theme.paper)
+                                    Service.busy ? "Ligando… pode levar até 1 minuto." :
+                                    installed ? "O serviço está instalado, mas não respondeu. Tente ligar de novo." :
+                                    "Clique em “Ligar a proteção”. O Mac vai pedir a sua senha.", size: 12, color: Theme.paper)
         small.frame = NSRect(x: 92, y: 20 + big.fittingSize.height + 4, width: contentW - 110, height: small.fittingSize.height)
         [icon, big, small].forEach { hero.addSubview($0) }
+        if !on {
+            let b = BoxButton(Service.busy ? "Ligando…" : "Ligar a proteção") { [weak self] in self?.app?.turnOn() }
+            b.enabled = !Service.busy
+            b.fontSize = 13
+            b.frame = NSRect(x: contentW - 190, y: 28, width: 170, height: 40)
+            small.frame.size.width = contentW - 300
+            big.frame.size.width = contentW - 300
+            hero.addSubview(b)
+        }
         panel.addSubview(hero)
         y = hero.frame.maxY + 16
 
@@ -444,9 +458,14 @@ final class MainWindow: NSObject, NSWindowDelegate {
         let info = Theme.label("""
         Para sites normais, o Magen pergunta à Cloudflare (\(cfg.upstream.first ?? "1.1.1.1")). Ele só vê o nome do site, nunca o conteúdo das páginas, por isso não deixa a internet lenta.
 
-        As listas de sites adultos se atualizam sozinhas a cada \(Int(cfg.updateEveryHours)) horas. Mudar estas opções pede a senha do Mac. Para remover o Magen, dê dois cliques em desinstalar.command.
+        As listas de sites adultos se atualizam sozinhas a cada \(Int(cfg.updateEveryHours)) horas. Mudar estas opções pede a senha do Mac.
         """, size: 12, color: Theme.ink, wrap: contentW)
-        add(info, y: y, w: contentW)
+        y = add(info, y: y, w: contentW) + 20
+        if Service.isInstalled {
+            let remove = BoxButton("Remover o Magen deste Mac…", symbol: "trash") { [weak self] in self?.app?.turnOff() }
+            remove.frame = NSRect(x: 20, y: y, width: 260, height: 56)
+            panel.addSubview(remove)
+        }
     }
 
     // MARK: Sobre

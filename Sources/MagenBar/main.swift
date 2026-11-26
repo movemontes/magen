@@ -66,6 +66,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, MagenA
     @objc func menuAbout() { mainWindow.show(tab: .sobre) }
     @objc func menuDonate() { donate.show() }
     func showDonate() { donate.show() }
+
+    // MARK: turn protection on / off (no Terminal needed)
+
+    func turnOn() {
+        guard !Service.busy, Service.relayCheckBeforeInstall() else { return }
+        Service.install { [weak self] ok in
+            guard let self else { return }
+            if ok && Bundle.main.bundlePath != "/Applications/Magen.app" {
+                // Opened from the download: the installed copy in Applications takes over.
+                NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: "/Applications/Magen.app"),
+                                                   configuration: NSWorkspace.OpenConfiguration()) { _, _ in
+                    DispatchQueue.main.async { NSApp.terminate(nil) }
+                }
+                return
+            }
+            self.refreshIcon()
+            self.mainWindow.show(tab: .inicio)
+            if ok && !DonatePopup.alreadySeen { self.donate.show() }
+        }
+        mainWindow.reload() // shows "Ligando…"
+    }
+
+    func turnOff() {
+        guard !Service.busy, Service.confirmRemoval() else { return }
+        Service.uninstall { [weak self] ok in
+            guard let self else { return }
+            self.refreshIcon()
+            self.mainWindow.show(tab: .inicio)
+            if ok {
+                Service.alert("Proteção removida", "O DNS do Mac voltou ao normal e os arquivos do Magen foram para o Lixo. Para apagar o app, arraste o Magen de Aplicativos para o Lixo.")
+            }
+        }
+    }
     @objc func menuUpdate() { Updates.check(manual: true) }
     @objc func menuSettings() { mainWindow.show(tab: .versiculos) }
     @objc func menuTab(_ sender: NSMenuItem) { mainWindow.show(tab: MainWindow.Tab(rawValue: sender.tag)) }
@@ -95,7 +128,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, MagenA
         return Date().timeIntervalSince(mod) < 90 && FileManager.default.fileExists(atPath: Paths.pid(magenDir).path)
     }
 
-    private func refreshIcon() {
+    func refreshIcon() {
         let on = serviceIsOn
         let img = Icons.buckler(size: 18, off: !on)
         img.accessibilityDescription = on ? "Magen ligado" : "Magen desligado"

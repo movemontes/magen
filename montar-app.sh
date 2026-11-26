@@ -2,7 +2,7 @@
 # Compila tudo e monta o Magen.app (ícone da barra de menus) em build/.
 set -euo pipefail
 cd "$(dirname "$0")"
-VERSION="0.4"
+VERSION="1.0"
 
 swift build -c release
 APP="build/Magen.app"
@@ -10,6 +10,10 @@ rm -rf "$APP"   # build/ só tem coisas geradas por este script
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/MagenBar "$APP/Contents/MacOS/MagenBar"
 cp -R Resources/fonts "$APP/Contents/Resources/fonts"   # Archivo (SIL OFL)
+# O serviço que bloqueia (vai junto, o app instala sozinho)
+mkdir -p "$APP/Contents/Resources/servico"
+cp .build/release/magend .build/release/magen Resources/servico/*.sh "$APP/Contents/Resources/servico/"
+chmod 755 "$APP/Contents/Resources/servico/"*
 # Ícone do app (Dock e Finder), desenhado pelo próprio Magen
 .build/release/MagenBar --make-iconset build/AppIcon.iconset
 iconutil -c icns build/AppIcon.iconset -o "$APP/Contents/Resources/AppIcon.icns"
@@ -32,10 +36,17 @@ cat > "$APP/Contents/Info.plist" <<EOF
 </dict>
 </plist>
 EOF
-codesign --force --sign - "$APP"   # assinatura local (sem conta Apple paga)
+codesign --force --deep --sign - "$APP"   # assinatura local (sem conta Apple paga)
 
 mkdir -p bin
 cp .build/release/magend .build/release/magen bin/
 rm -rf bin/Magen.app   # bin/ só tem cópias geradas por este script
 cp -R "$APP" bin/
-echo "Pronto: $APP e bin/"
+# Arquivo para baixar: Magen.app + atalho para Aplicativos, num .dmg
+rm -rf build/dmg && mkdir -p build/dmg dist
+ditto "$APP" build/dmg/Magen.app
+ln -s /Applications build/dmg/Aplicativos
+rm -f "dist/Magen-$VERSION-mac.dmg"
+hdiutil create -quiet -volname "Magen" -srcfolder build/dmg -fs HFS+ -format UDZO "dist/Magen-$VERSION-mac.dmg"
+cp "dist/Magen-$VERSION-mac.dmg" dist/Magen-mac.dmg
+echo "Pronto: $APP, bin/ e dist/Magen-$VERSION-mac.dmg"

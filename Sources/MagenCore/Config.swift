@@ -1,0 +1,121 @@
+import Foundation
+
+public struct MagenConfig: Codable {
+    /// DNS servers that answer the questions Magen does not block.
+    public var upstream: [String] = ["1.1.1.1", "1.0.0.1", "9.9.9.9"]
+    /// Blocklists downloaded automatically.
+    public var lists: [String] = MagenConfig.defaultLists
+    /// Sites the person chose to unblock (they and their subdomains).
+    public var allow: [String] = []
+    /// Extra sites the person chose to block (they and their subdomains).
+    public var block: [String] = []
+    /// Block tricks that skip Magen (browser "secure DNS", iCloud Private Relay).
+    public var antiBypass: Bool = true
+    /// Hours between list updates.
+    public var updateEveryHours: Double = 24
+
+    public init() {}
+
+    public static let defaultLists = [
+        "https://nsfw.oisd.nl/domainswild2",
+        "https://blocklistproject.github.io/Lists/alt-version/porn-nl.txt",
+        "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn-only/hosts",
+    ]
+
+    // Tolerant decoding: missing keys keep their default value.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = MagenConfig()
+        upstream = try c.decodeIfPresent([String].self, forKey: .upstream) ?? d.upstream
+        lists = try c.decodeIfPresent([String].self, forKey: .lists) ?? d.lists
+        allow = try c.decodeIfPresent([String].self, forKey: .allow) ?? d.allow
+        block = try c.decodeIfPresent([String].self, forKey: .block) ?? d.block
+        antiBypass = try c.decodeIfPresent(Bool.self, forKey: .antiBypass) ?? d.antiBypass
+        updateEveryHours = try c.decodeIfPresent(Double.self, forKey: .updateEveryHours) ?? d.updateEveryHours
+    }
+
+    public static func load(from url: URL) -> MagenConfig {
+        guard let data = try? Data(contentsOf: url),
+              let cfg = try? JSONDecoder().decode(MagenConfig.self, from: data) else { return MagenConfig() }
+        return cfg
+    }
+
+    public func save(to url: URL) throws {
+        let enc = JSONEncoder()
+        enc.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        try enc.encode(self).write(to: url, options: .atomic)
+    }
+}
+
+public struct MagenState: Codable {
+    public var domains: Int = 0
+    public var lastUpdate: Date? = nil
+    public var lists: [ListResult] = []
+    public var blockedSinceStart: Int = 0
+    public var startedAt: Date? = nil
+
+    public struct ListResult: Codable {
+        public var url: String
+        public var ok: Bool
+        public var count: Int
+        public init(url: String, ok: Bool, count: Int) { self.url = url; self.ok = ok; self.count = count }
+    }
+
+    public init() {}
+}
+
+public enum Paths {
+    public static let defaultDir = URL(fileURLWithPath: "/Library/Application Support/Magen")
+    public static func config(_ dir: URL) -> URL { dir.appendingPathComponent("config.json") }
+    public static func state(_ dir: URL) -> URL { dir.appendingPathComponent("state.json") }
+    public static func cache(_ dir: URL) -> URL { dir.appendingPathComponent("blocklist-cache.txt") }
+    public static func pid(_ dir: URL) -> URL { dir.appendingPathComponent("magend.pid") }
+    public static func savedDNS(_ dir: URL) -> URL { dir.appendingPathComponent("dns-anterior.txt") }
+}
+
+public enum BuiltIn {
+    /// Never accept these as list entries. A list entry also blocks all
+    /// subdomains, so a broken list containing e.g. "com.br" or "google.com"
+    /// would otherwise break huge parts of the internet. Subdomains listed on
+    /// their own (like "some-adult-blog.tumblr.com") are still blocked.
+    public static let neverListEntries: Set<String> = [
+        // multi-part public suffixes
+        "com.br", "net.br", "org.br", "gov.br", "edu.br", "art.br", "blog.br", "co.uk", "org.uk",
+        "com.au", "co.jp", "co.nz", "com.mx", "com.ar", "com.pt", "co.za", "co.in", "com.tr",
+        // big platforms and shared hosting
+        "google.com", "google.com.br", "youtube.com", "googlevideo.com", "gstatic.com",
+        "googleapis.com", "googleusercontent.com", "ggpht.com", "ytimg.com",
+        "apple.com", "icloud.com", "mzstatic.com", "microsoft.com", "live.com", "bing.com",
+        "facebook.com", "fbcdn.net", "instagram.com", "cdninstagram.com", "whatsapp.com", "whatsapp.net",
+        "twitter.com", "x.com", "twimg.com", "t.co", "reddit.com", "redd.it", "redditmedia.com",
+        "tumblr.com", "imgur.com", "discord.com", "discordapp.com", "discord.gg", "tiktok.com",
+        "amazon.com", "amazon.com.br", "amazonaws.com", "cloudfront.net", "akamaihd.net",
+        "akamaized.net", "fastly.net", "cloudflare.com", "cloudflare.net", "github.com", "github.io",
+        "githubusercontent.com", "gitlab.io", "blogspot.com", "blogger.com", "wordpress.com",
+        "wp.com", "medium.com", "wikipedia.org", "wikimedia.org", "telegram.org", "t.me",
+        "globo.com", "uol.com.br", "netflix.com", "spotify.com", "bit.ly", "linktr.ee",
+        "dropbox.com", "vercel.app", "netlify.app", "pages.dev", "herokuapp.com",
+        // Found wrongly blocked when checking the 2,000 most visited sites (Nov 2026)
+        "xiaohongshu.com", "ekstrabladet.dk", "suruga-ya.jp", "character.ai", "gotinder.com",
+        "tinder.com", "sslip.io", "nip.io",
+    ]
+
+    /// Blocked when `antiBypass` is on. These are ways a browser or the
+    /// system can look up sites without asking Magen.
+    public static let antiBypassDomains: [String] = [
+        // Firefox: this "canary" domain tells it not to turn on DNS-over-HTTPS by itself
+        "use-application-dns.net",
+        // iCloud Private Relay (Apple documents this way for networks to turn it off)
+        "mask.icloud.com", "mask-h2.icloud.com",
+        // Common DNS-over-HTTPS / DNS-over-TLS servers used by browser "secure DNS"
+        "dns.google", "dns.google.com", "dns64.dns.google",
+        "cloudflare-dns.com", "one.one.one.one", "1dot1dot1dot1.cloudflare-dns.com",
+        "dns.quad9.net", "dns9.quad9.net", "dns10.quad9.net", "dns11.quad9.net", "dns12.quad9.net",
+        "doh.opendns.com", "dns.opendns.com", "doh.familyshield.opendns.com",
+        "dns.adguard.com", "dns.adguard-dns.com", "dns-unfiltered.adguard.com",
+        "dns.nextdns.io", "doh.cleanbrowsing.org", "doh.mullvad.net", "dns.mullvad.net",
+        "doh.dns.sb", "dns.controld.com", "freedns.controld.com", "doh.libredns.gr",
+        "dns.alidns.com", "doh.pub", "dns.twnic.tw", "chrome.cloudflare-dns.com",
+        "mozilla.cloudflare-dns.com", "doh.xfinity.com", "dns.brahma.world",
+    ]
+}

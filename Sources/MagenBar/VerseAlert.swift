@@ -76,11 +76,11 @@ final class VerseAlert {
     private func updateButton() {
         guard let b = button else { return }
         if remaining > 0 {
-            b.title = "Respire… \(remaining)"
+            b.title = trf("Respire… %d", remaining)
             b.enabled = false
             b.accent = false
         } else {
-            b.title = "Entendi"
+            b.title = tr("Entendi")
             b.enabled = true
             b.accent = true
         }
@@ -127,7 +127,7 @@ final class VerseAlert {
         body.frame = NSRect(x: pad, y: y, width: textW, height: bh)
         y += bh + 14
 
-        let ref = Theme.label("\(v.ref.uppercased())  ·  BÍBLIA LIVRE", size: 12, bold: true, color: Theme.dark)
+        let ref = Theme.label(v.ref.uppercased() + "  ·  " + tr("BÍBLIA LIVRE"), size: 12, bold: true, color: Theme.dark)
         ref.frame = NSRect(x: pad, y: y, width: textW, height: ref.fittingSize.height)
         y += ref.fittingSize.height + 26
 

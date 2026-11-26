@@ -21,6 +21,7 @@
 - **Não fica lento.** Ele só vê o *nome* do site, nunca o conteúdo das páginas (cerca de 1 milésimo de segundo a mais).
 - **Sem bloqueio bobo.** Não olha fotos, então não esconde pessoas vestidas.
 - **Versículo na hora certa.** 43 versículos da Bíblia Livre, com um título curto como “Você pode fugir disso.”. O nome do site nunca aparece.
+- **Se atualiza sozinho e fala português e inglês.** Procura versão nova no GitHub uma vez por dia.
 - **Difícil de burlar.** Liberar um site pede uma frase, a senha do Mac e só vale **1 hora depois**. Sites com nome claramente adulto nunca podem ser liberados. Também bloqueia o “DNS seguro” dos navegadores.
 
 <p align="center">
@@ -85,6 +86,7 @@ dig @127.0.0.1 -p 53535 exemplo.com
 ## Créditos e licenças
 
 - Código: [MIT](LICENSE).
+- Versículos em inglês: **World English Bible** (domínio público).
 - Versículos: **Bíblia Livre (BLIVRE)**, Copyright © Diego Santos, Mario Sérgio e Marco Teles, fevereiro de 2018, [Creative Commons Atribuição 4.0 Brasil](http://creativecommons.org/licenses/by/4.0/br/). Os títulos acima dos versículos são do Magen.
 - Fonte: [Archivo](https://github.com/Omnibus-Type/Archivo), SIL Open Font License (`Resources/fonts/OFL.txt`).
 - Listas de bloqueio: licenças de cada projeto; o Magen não as redistribui.

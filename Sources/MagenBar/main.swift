@@ -17,6 +17,21 @@ if CommandLine.arguments.contains("--relay-status") {
     print(PrivateRelay.isOn().map { $0 ? "ligada" : "desligada" } ?? "desconhecida")
     exit(0)
 }
+// Test of the updater (never changes anything): finds the latest release, downloads and opens it.
+if CommandLine.arguments.contains("--test-update") {
+    Updates.fetchLatest { rel in
+        guard let rel else { print("ERRO: não achei a versão no GitHub"); exit(1) }
+        print("versão no GitHub: \(rel.version) · este app: \(appVersion) · mais nova? \(Updates.isNewer(rel.version, than: appVersion))")
+        print("notas (\(Lang.current)):\n\(rel.notes)")
+        Updates.downloadAndMount(rel) { app, mount in
+            print(app != nil ? "dmg baixado e aberto: \(app!.lastPathComponent) com o serviço dentro" : "ERRO ao baixar/abrir o dmg")
+            Updates.run("/usr/bin/hdiutil", ["detach", mount.path, "-force"])
+            print("1.2 > 1.10? \(Updates.isNewer("1.2", than: "1.10")) · 1.10 > 1.9? \(Updates.isNewer("1.10", than: "1.9")) · 1.1 > 1.0? \(Updates.isNewer("1.1", than: "1.0"))")
+            exit(app != nil ? 0 : 1)
+        }
+    }
+    RunLoop.main.run()
+}
 // Used by montar-app.sh: draws the app icon into a .iconset folder and exits.
 if let i = CommandLine.arguments.firstIndex(of: "--make-iconset"), i + 1 < CommandLine.arguments.count {
     AppIconArt.writeIconset(to: URL(fileURLWithPath: CommandLine.arguments[i + 1]))
@@ -58,7 +73,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, MagenA
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { self.donate.show() }
             }
         }
-        if Updates.autoCheck { Updates.check(manual: false) }
+        // Look for a new version at start and every 6 hours (at most one real check a day).
+        do { DispatchQueue.main.asyncAfter(deadline: .now() + 20) { Updates.check(manual: false) } }
+        Timer.scheduledTimer(withTimeInterval: 6 * 3600, repeats: true) { _ in Updates.check(manual: false) }
     }
 
     // MARK: top menu actions
@@ -75,8 +92,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, MagenA
             guard let self else { return }
             if ok && Bundle.main.bundlePath != "/Applications/Magen.app" {
                 // Opened from the download: the installed copy in Applications takes over.
+                let cfg = NSWorkspace.OpenConfiguration()
+                cfg.createsNewApplicationInstance = true
                 NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: "/Applications/Magen.app"),
-                                                   configuration: NSWorkspace.OpenConfiguration()) { _, _ in
+                                                   configuration: cfg) { _, _ in
                     DispatchQueue.main.async { NSApp.terminate(nil) }
                 }
                 return
@@ -107,6 +126,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, MagenA
     @objc func menuVerse() { showVersePreview() }
     @objc func menuRelay() { mainWindow.show(tab: .protecao) }
     @objc func menuHelp() { mainWindow.show(tab: .protecao) }
+    @objc func menuToggleDock() { Dock.hideOnClose.toggle(); buildMainMenu() }
+    @objc func menuLangPT() { changeLanguage("pt") }
+    @objc func menuLangEN() { changeLanguage("en") }
+
+    /// Switch language right away: menus and window are redrawn.
+    func changeLanguage(_ lang: String) {
+        Lang.set(lang)
+        buildMainMenu()
+        refreshIcon()
+        mainWindow.relayout()
+    }
 
     /// Double-clicking Magen.app again while it runs opens the window.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -131,9 +161,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, MagenA
     func refreshIcon() {
         let on = serviceIsOn
         let img = Icons.buckler(size: 18, off: !on)
-        img.accessibilityDescription = on ? "Magen ligado" : "Magen desligado"
+        img.accessibilityDescription = tr(on ? "Magen ligado" : "Magen desligado")
         statusItem.button?.image = img
-        statusItem.button?.toolTip = on ? "Magen: protegendo" : "Magen: desligado"
+        statusItem.button?.toolTip = tr(on ? "Magen: protegendo" : "Magen: desligado")
     }
 
     // MARK: verse window
@@ -146,13 +176,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, MagenA
               Date().timeIntervalSince(lastAlert) >= Double(Prefs.gapMinutes) * 60 else { return }
         lastAlert = Date()
         let v = randomVerse()
-        alert.show(v, heading: "Site bloqueado", lockSeconds: Prefs.lockSeconds,
+        alert.show(v, heading: tr("Site bloqueado"), lockSeconds: Prefs.lockSeconds,
                    snapshotTo: env["MAGEN_ALERT_PNG"].map { URL(fileURLWithPath: $0) })
         print("Janela de versículo: \(v.ref)")
     }
 
     func showVersePreview() {
-        alert.show(randomVerse(), heading: "Exemplo", lockSeconds: min(Prefs.lockSeconds, 3))
+        alert.show(randomVerse(), heading: tr("Exemplo"), lockSeconds: min(Prefs.lockSeconds, 3))
     }
 
     private func randomVerse() -> Verse {
@@ -168,13 +198,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, MagenA
         menu.removeAllItems()
         let on = serviceIsOn
         let s = readState()
-        func info(_ t: String) { let i = NSMenuItem(title: t, action: nil, keyEquivalent: ""); i.isEnabled = false; menu.addItem(i) }
-        func item(_ t: String, _ sel: Selector) { let i = NSMenuItem(title: t, action: sel, keyEquivalent: ""); i.target = self; menu.addItem(i) }
+        func info(_ t: String) { let i = NSMenuItem(title: tr(t), action: nil, keyEquivalent: ""); i.isEnabled = false; menu.addItem(i) }
+        func item(_ t: String, _ sel: Selector) { let i = NSMenuItem(title: tr(t), action: sel, keyEquivalent: ""); i.target = self; menu.addItem(i) }
 
         info(on ? "✅ Magen está protegendo este Mac" : "⚠️ Magen está desligado")
         if let s {
             let today = s.todayKey == Self.todayKey() ? s.blockedToday : 0
-            info("Bloqueios hoje: \(today.formatted())")
+            info(trf("Bloqueios hoje: %@", num(today)))
         }
         if PrivateRelay.isOn() == true {
             item("⚠️ Desligar a Retransmissão Privada do iCloud…", #selector(openRelaySettings))
@@ -184,7 +214,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, MagenA
         item("Testar ou liberar um site…", #selector(openSites))
         item("Atualizar as listas agora", #selector(updateFromMenu))
         menu.addItem(.separator())
-        item("Apoie o Magen (Pix)…", #selector(menuDonate))
+        item(Lang.isEnglish ? "Support Magen…" : "Apoie o Magen (Pix)…", #selector(menuDonate))
         item("Procurar atualização…", #selector(menuUpdate))
         item("Sobre o Magen", #selector(menuAbout))
         menu.addItem(.separator())
@@ -209,8 +239,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, MagenA
     private func message(_ title: String, _ text: String) {
         NSApp.activate(ignoringOtherApps: true)
         let a = NSAlert()
-        a.messageText = title
-        a.informativeText = text
+        a.messageText = tr(title)
+        a.informativeText = tr(text)
         a.runModal()
     }
 
@@ -266,17 +296,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, MagenA
         func next() {
             guard !tabs.isEmpty else {
                 self.donate.show()
-                if let w = NSApp.windows.first(where: { $0.title == "Apoie o Magen" }), let c = w.contentView {
+                if let w = NSApp.windows.first(where: { $0.title == tr("Apoie o Magen") }), let c = w.contentView {
                     snapshot(c, to: out.appendingPathComponent("doacao.png"))
                 }
                 self.donate.close()
                 let v = verses.first { $0.ref == "1 Coríntios 10:13" } ?? verses[0]
-                alert.show(v, heading: "Site bloqueado", lockSeconds: 5, snapshotTo: out.appendingPathComponent("janela-versiculo.png"))
+                alert.show(v, heading: tr("Site bloqueado"), lockSeconds: 5, snapshotTo: out.appendingPathComponent("janela-versiculo.png"))
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { self.alert.close(); NSApp.terminate(nil) }
                 return
             }
             let t = tabs.removeFirst()
             mainWindow.show(tab: t)
+            if let sz = env["MAGEN_TEST_SIZE"]?.split(separator: "x").compactMap({ Double($0) }), sz.count == 2 {
+                mainWindow.window.setContentSize(NSSize(width: sz[0], height: sz[1]))
+            }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
                 if let v = self.mainWindow.window.contentView {
                     snapshot(v, to: out.appendingPathComponent("aba-\(t.rawValue)-\(t.title).png"))

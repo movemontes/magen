@@ -44,6 +44,7 @@ enum Theme {
 
     static func label(_ text: String, size: CGFloat, bold: Bool = false, color: NSColor = Theme.ink,
                       wrap: CGFloat? = nil, align: NSTextAlignment = .left) -> NSTextField {
+        let text = tr(text)
         let l = wrap != nil ? NSTextField(wrappingLabelWithString: text) : NSTextField(labelWithString: text)
         l.font = font(size, bold: bold)
         l.textColor = color
@@ -117,7 +118,7 @@ final class BoxButton: NSView {
     override var isFlipped: Bool { true }
 
     init(_ title: String, symbol: String? = nil, onClick: (() -> Void)? = nil) {
-        self.title = title
+        self.title = tr(title)
         self.symbolName = symbol
         self.onClick = onClick
         super.init(frame: .zero)

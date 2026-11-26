@@ -65,11 +65,11 @@ enum Service {
         while PrivateRelay.isOn() == true {
             let a = NSAlert()
             a.alertStyle = .warning
-            a.messageText = "Antes, desligue a Retransmissão Privada do iCloud"
-            a.informativeText = "Com ela ligada, apps como o Claude e o Gmail podem ficar sem internet quando o Magen está ativo.\n\nDesligue em: " + PrivateRelay.howTo + "\n\nDepois volte aqui e clique em “Já desliguei”."
-            a.addButton(withTitle: "Abrir Ajustes")
-            a.addButton(withTitle: "Já desliguei")
-            a.addButton(withTitle: "Continuar mesmo assim")
+            a.messageText = tr("Antes, desligue a Retransmissão Privada do iCloud")
+            a.informativeText = trf("Com ela ligada, apps como o Claude e o Gmail podem ficar sem internet quando o Magen está ativo.\n\nDesligue em: %@\n\nDepois volte aqui e clique em “Já desliguei”.", PrivateRelay.howTo)
+            a.addButton(withTitle: tr("Abrir Ajustes"))
+            a.addButton(withTitle: tr("Já desliguei"))
+            a.addButton(withTitle: tr("Continuar mesmo assim"))
             NSApp.activate(ignoringOtherApps: true)
             switch a.runModal() {
             case .alertFirstButtonReturn: PrivateRelay.openSettings()
@@ -81,19 +81,14 @@ enum Service {
     }
 
     /// Removing the protection is hard on purpose: a sentence + the Mac password.
-    static let removeSentence = "quero remover a proteção"
+    static var removeSentence: String { Lang.isEnglish ? "i want to remove the protection" : "quero remover a proteção" }
     static func confirmRemoval() -> Bool {
         let a = NSAlert()
         a.alertStyle = .critical
-        a.messageText = "Remover o Magen deste Mac?"
-        a.informativeText = """
-        Sem o Magen, os sites adultos voltam a abrir. Se for um momento de tentação, feche esta janela, respire e faça outra coisa.
-
-        Se tiver certeza, digite exatamente:
-        \(removeSentence)
-        """
-        a.addButton(withTitle: "Desistir")
-        a.addButton(withTitle: "Remover")
+        a.messageText = tr("Remover o Magen deste Mac?")
+        a.informativeText = trf("Sem o Magen, os sites adultos voltam a abrir. Se for um momento de tentação, feche esta janela, respire e faça outra coisa.\n\nSe tiver certeza, digite exatamente:\n%@", removeSentence)
+        a.addButton(withTitle: tr("Desistir"))
+        a.addButton(withTitle: tr("Remover"))
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
         field.placeholderString = removeSentence
         a.accessoryView = field
@@ -106,8 +101,8 @@ enum Service {
     static func alert(_ title: String, _ text: String) {
         NSApp.activate(ignoringOtherApps: true)
         let a = NSAlert()
-        a.messageText = title
-        a.informativeText = text
+        a.messageText = tr(title)
+        a.informativeText = tr(text)
         a.runModal()
     }
 }

@@ -29,5 +29,5 @@ enum PrivateRelay {
         NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/System Settings.app"))
     }
 
-    static let howTo = "Ajustes do Sistema › (seu nome) › iCloud › Retransmissão Privada › Desligar."
+    static var howTo: String { tr("Ajustes do Sistema › (seu nome) › iCloud › Retransmissão Privada › Desligar.") }
 }

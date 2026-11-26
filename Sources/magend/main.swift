@@ -106,7 +106,16 @@ func download(_ url: String) -> String? {
         sem.signal()
     }.resume()
     sem.wait()
-    return result
+    if result != nil { return result }
+    // Fallback: Apple's curl (some antivirus apps block unsigned programs' network).
+    let p = Process()
+    p.executableURL = URL(fileURLWithPath: "/usr/bin/curl")
+    p.arguments = ["-sSfL", "--max-time", "120", "-A", "Magen-blocker", url]
+    let out = Pipe(); p.standardOutput = out; p.standardError = Pipe()
+    guard (try? p.run()) != nil else { return nil }
+    let data = out.fileHandleForReading.readDataToEndOfFile()
+    p.waitUntilExit()
+    return p.terminationStatus == 0 ? String(decoding: data, as: UTF8.self) : nil
 }
 
 let updateQueue = DispatchQueue(label: "magen.update")

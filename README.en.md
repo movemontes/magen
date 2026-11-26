@@ -18,7 +18,7 @@
 
 **Magen** (“shield” in Hebrew) is a free Mac app that blocks over **1 million adult websites** across your whole computer: every browser and every app. It doesn't slow the internet down and doesn't hide innocent photos of clothed people. When a site is blocked, the screen turns red and shows a **Bible verse**.
 
-> The app is in Brazilian Portuguese for now. The verses come from the Bíblia Livre, a Portuguese translation.
+> The app speaks English and Portuguese (it follows your Mac's language, and you can switch in the Magen menu). English verses come from the World English Bible (public domain).
 
 ## Why use it
 
@@ -27,10 +27,11 @@
 - **No slowdown.** It only sees the site's *name*, never the page content (about 1 millisecond extra).
 - **No silly blocks.** It doesn't look at photos, so it never hides clothed people.
 - **A verse at the right time.** 43 verses, each with a short title. The site's name never appears.
+- **Updates itself.** Checks GitHub once a day and updates app and service in one step.
 - **Hard to get around.** Unblocking a site needs a typed sentence, the Mac password and only takes effect **1 hour later**. Sites with an obviously adult name can never be unblocked. It also blocks browsers' “secure DNS”.
 
 <p align="center">
-  <img src="docs/telas-pt.png" alt="Magen screens" width="100%">
+  <img src="docs/telas-en.png" alt="Magen screens" width="100%">
 </p>
 
 ## How to install
@@ -38,7 +39,7 @@
 1. [**Download Magen**](https://github.com/movemontes/magen/releases/latest/download/Magen-mac.dmg) (a `.dmg` file).
 2. Open it and drag **Magen** to your **Applications** folder.
 3. Open Magen. The first time, your Mac says it can't verify the app, because it's free and not from the App Store. Open **System Settings → Privacy & Security**, scroll to the bottom and click **Open Anyway**.
-4. Click **Ligar a proteção** (“Turn on protection”) and enter your Mac password.
+4. Click **Turn on protection** and enter your Mac password.
 
 **Before turning it on:** turn off **iCloud Private Relay** (System Settings › your name › iCloud). With it on, some apps (like Claude and Gmail) lose internet access. Magen warns you and helps.
 
@@ -89,6 +90,7 @@ dig @127.0.0.1 -p 53535 example.com
 ## Credits and licenses
 
 - Code: [MIT](LICENSE).
-- Verses: **Bíblia Livre (BLIVRE)**, Copyright © Diego Santos, Mario Sérgio and Marco Teles, February 2018, [Creative Commons Attribution 4.0 Brazil](http://creativecommons.org/licenses/by/4.0/br/). The titles above the verses are Magen's.
+- Verses in English: **World English Bible** (public domain), from [ebible.org](https://ebible.org/engwebp/).
+- Verses in Portuguese: **Bíblia Livre (BLIVRE)**, Copyright © Diego Santos, Mario Sérgio and Marco Teles, February 2018, [Creative Commons Attribution 4.0 Brazil](http://creativecommons.org/licenses/by/4.0/br/). The titles above the verses are Magen's.
 - Font: [Archivo](https://github.com/Omnibus-Type/Archivo), SIL Open Font License (`Resources/fonts/OFL.txt`).
 - Block lists: each project's own license; Magen does not redistribute them.

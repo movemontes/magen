@@ -1,14 +1,21 @@
-// Versículos da Bíblia Livre (BLIVRE), Copyright © Diego Santos, Mario Sérgio
-// e Marco Teles, fevereiro de 2018. Licença Creative Commons Atribuição 4.0
-// Brasil (http://creativecommons.org/licenses/by/4.0/br/). Texto copiado de
-// https://ebible.org/porbr2018/ ; só os colchetes de palavras acrescentadas
-// foram tirados, para ficar mais fácil de ler na notificação.
-/// `title` é uma frase curta do Magen (não é texto bíblico) que resume o versículo.
+// Versículos do Magen, em português e inglês.
+// Português: Bíblia Livre (BLIVRE), Copyright © Diego Santos, Mario Sérgio e Marco
+// Teles, fevereiro de 2018, Licença Creative Commons Atribuição 4.0 Brasil
+// (http://creativecommons.org/licenses/by/4.0/br/), de https://ebible.org/porbr2018/
+// (só os colchetes de palavras acrescentadas foram tirados).
+// Inglês: World English Bible (domínio público), de https://ebible.org/engwebp/
+// Os títulos acima de cada versículo são frases do Magen (não são texto bíblico).
 struct Verse { let title: String; let text: String; let ref: String }
 
-let verseCredit = "Bíblia Livre (BLIVRE), 2018 · CC BY 4.0"
+var verses: [Verse] { Lang.isEnglish ? versesEN : versesPT }
+var verseCredit: String { Lang.isEnglish ? "World English Bible (public domain)" : "Bíblia Livre (BLIVRE), 2018 · CC BY 4.0" }
+var verseCreditLong: String {
+    Lang.isEnglish
+        ? "\(versesEN.count) verses from the World English Bible (public domain). The titles above each verse are Magen's."
+        : "\(versesPT.count) versículos da Bíblia Livre (BLIVRE), Copyright © Diego Santos, Mario Sérgio e Marco Teles, fevereiro de 2018. Licença Creative Commons Atribuição 4.0 Brasil. Os títulos acima de cada versículo são do Magen."
+}
 
-let verses: [Verse] = [
+let versesPT: [Verse] = [
     Verse(title: "Você pode fugir disso.", text: "Nenhuma tentação vos veio, que não fosse humana; porém Deus é fiel; que não vos deixará tentar mais do que o que podeis, antes com a tentação também dará a saída, para que a possais suportar.", ref: "1 Coríntios 10:13"),
     Verse(title: "Fugir também é vencer.", text: "Fugi do pecado sexual. Todo pecado que o ser humano comete é fora do corpo; mas o que pratica pecado sexual, peca contra seu próprio corpo.", ref: "1 Coríntios 6:18"),
     Verse(title: "Seu corpo não é descartável.", text: "Ou não sabeis que vosso corpo é templo do Espírito Santo, o qual está em vós, o qual tendes de Deus, e que não sois de vós mesmos?", ref: "1 Coríntios 6:19"),
@@ -52,4 +59,50 @@ let verses: [Verse] = [
     Verse(title: "Vai, e não peques mais.", text: "E disse ela: Ninguém, Senhor. E disse-lhe Jesus: Nem eu também te condeno; vai, e não peques mais.", ref: "João 8:11"),
     Verse(title: "A verdade liberta.", text: "E conhecereis a verdade, e a verdade vos libertará.", ref: "João 8:32"),
     Verse(title: "Você pode ser livre de verdade.", text: "Portanto, se o Filho vos libertar, verdadeiramente sereis livres.", ref: "João 8:36"),
+]
+
+let versesEN: [Verse] = [
+    Verse(title: "You can run from this.", text: "No temptation has taken you except what is common to man. God is faithful, who will not allow you to be tempted above what you are able, but will with the temptation also make the way of escape, that you may be able to endure it.", ref: "1 Corinthians 10:13"),
+    Verse(title: "Running away is winning too.", text: "Flee sexual immorality! “Every sin that a man does is outside the body,” but he who commits sexual immorality sins against his own body.", ref: "1 Corinthians 6:18"),
+    Verse(title: "Your body is not disposable.", text: "Or don’t you know that your body is a temple of the Holy Spirit who is in you, whom you have from God? You are not your own.", ref: "1 Corinthians 6:19"),
+    Verse(title: "You were bought at a high price.", text: "for you were bought with a price. Therefore glorify God in your body and in your spirit, which are God’s.", ref: "1 Corinthians 6:20"),
+    Verse(title: "There is a clean way.", text: "How can a young man keep his way pure? By living according to your word.", ref: "Psalm 119:9"),
+    Verse(title: "Keep the Word in your heart.", text: "I have hidden your word in my heart, that I might not sin against you.", ref: "Psalm 119:11"),
+    Verse(title: "Turn your eyes away.", text: "Turn my eyes away from looking at worthless things. Revive me in your ways.", ref: "Psalm 119:37"),
+    Verse(title: "A new heart is possible.", text: "Create in me a clean heart, O God. Renew a right spirit within me.", ref: "Psalm 51:10"),
+    Verse(title: "Not everything deserves your eyes.", text: "I will set no vile thing before my eyes. I hate the deeds of faithless men. They will not cling to me.", ref: "Psalm 101:3"),
+    Verse(title: "The pure in heart will see God.", text: "Blessed are the pure in heart, for they shall see God.", ref: "Matthew 5:8"),
+    Verse(title: "Watch. The flesh is weak.", text: "Watch and pray, that you don’t enter into temptation. The spirit indeed is willing, but the flesh is weak.”", ref: "Matthew 26:41"),
+    Verse(title: "Your mind can be renewed.", text: "Don’t be conformed to this world, but be transformed by the renewing of your mind, so that you may prove what is the good, well-pleasing, and perfect will of God.", ref: "Romans 12:2"),
+    Verse(title: "This doesn't rule you.", text: "For sin will not have dominion over you, for you are not under law, but under grace.", ref: "Romans 6:14"),
+    Verse(title: "No condemnation. Get up.", text: "There is therefore now no condemnation to those who are in Christ Jesus, who don’t walk according to the flesh, but according to the Spirit.", ref: "Romans 8:1"),
+    Verse(title: "Don't feed that desire.", text: "But put on the Lord Jesus Christ, and make no provision for the flesh, for its lusts.", ref: "Romans 13:14"),
+    Verse(title: "Run, and take another path.", text: "Flee from youthful lusts; but pursue righteousness, faith, love, and peace with those who call on the Lord out of a pure heart.", ref: "2 Timothy 2:22"),
+    Verse(title: "Think about what is pure.", text: "Finally, brothers, whatever things are true, whatever things are honorable, whatever things are just, whatever things are pure, whatever things are lovely, whatever things are of good report: if there is any virtue and if there is anything worthy of praise, think about these things.", ref: "Philippians 4:8"),
+    Verse(title: "You are not without strength.", text: "I can do all things through Christ who strengthens me.", ref: "Philippians 4:13"),
+    Verse(title: "Walk by the Spirit.", text: "But I say, walk by the Spirit, and you won’t fulfill the lust of the flesh.", ref: "Galatians 5:16"),
+    Verse(title: "Resisting is worth it.", text: "Blessed is a person who endures temptation, for when he has been approved, he will receive the crown of life which the Lord promised to those who love him.", ref: "James 1:12"),
+    Verse(title: "Resist, and he will flee.", text: "Be subject therefore to God. Resist the devil, and he will flee from you.", ref: "James 4:7"),
+    Verse(title: "Draw near to God.", text: "Draw near to God, and he will draw near to you. Cleanse your hands, you sinners. Purify your hearts, you double-minded.", ref: "James 4:8"),
+    Verse(title: "God wants something better for you.", text: "For this is the will of God: your sanctification, that you abstain from sexual immorality.", ref: "1 Thessalonians 4:3"),
+    Verse(title: "You were called to more.", text: "For God called us not for uncleanness, but in sanctification.", ref: "1 Thessalonians 4:7"),
+    Verse(title: "You can still start over.", text: "If we confess our sins, he is faithful and righteous to forgive us the sins and to cleanse us from all unrighteousness.", ref: "1 John 1:9"),
+    Verse(title: "He understands your struggle.", text: "For we don’t have a high priest who can’t be touched with the feeling of our infirmities, but one who has been in all points tempted like we are, yet without sin.", ref: "Hebrews 4:15"),
+    Verse(title: "Ask for help now.", text: "Let’s therefore draw near with boldness to the throne of grace, that we may receive mercy and may find grace for help in time of need.", ref: "Hebrews 4:16"),
+    Verse(title: "Guard your heart.", text: "Keep your heart with all diligence, for out of it is the wellspring of life.", ref: "Proverbs 4:23"),
+    Verse(title: "You are not alone.", text: "Don’t you be afraid, for I am with you. Don’t be dismayed, for I am your God. I will strengthen you. Yes, I will help you. Yes, I will uphold you with the right hand of my righteousness.", ref: "Isaiah 41:10"),
+    Verse(title: "Your strength will be renewed.", text: "but those who wait for the LORD will renew their strength. They will mount up with wings like eagles. They will run, and not be weary. They will walk, and not faint.", ref: "Isaiah 40:31"),
+    Verse(title: "The old has passed away.", text: "Therefore if anyone is in Christ, he is a new creation. The old things have passed away. Behold, all things have become new.", ref: "2 Corinthians 5:17"),
+    Verse(title: "Grace is enough.", text: "He has said to me, “My grace is sufficient for you, for my power is made perfect in weakness.” Most gladly therefore I will rather glory in my weaknesses, that the power of Christ may rest on me.", ref: "2 Corinthians 12:9"),
+    Verse(title: "Mercy has not run out.", text: "It is because of the LORD’s loving kindnesses that we are not consumed, because his mercies don’t fail.", ref: "Lamentations 3:22"),
+    Verse(title: "Every morning is a new start.", text: "They are new every morning. Great is your faithfulness.", ref: "Lamentations 3:23"),
+    Verse(title: "Be strong in the Lord.", text: "Finally, be strong in the Lord and in the strength of his might.", ref: "Ephesians 6:10"),
+    Verse(title: "Hand over what weighs on you.", text: "casting all your worries on him, because he cares for you.", ref: "1 Peter 5:7"),
+    Verse(title: "There is refuge for you.", text: "God is our refuge and strength, a very present help in trouble.", ref: "Psalm 46:1"),
+    Verse(title: "Your past has been thrown far away.", text: "As far as the east is from the west, so far has he removed our transgressions from us.", ref: "Psalm 103:12"),
+    Verse(title: "Your help comes from above.", text: "My help comes from the LORD, who made heaven and earth.", ref: "Psalm 121:2"),
+    Verse(title: "True joy is somewhere else.", text: "You will show me the path of life. In your presence is fullness of joy. In your right hand there are pleasures forever more.", ref: "Psalm 16:11"),
+    Verse(title: "Go, and sin no more.", text: "She said, “No one, Lord.” Jesus said, “Neither do I condemn you. Go your way. From now on, sin no more.”", ref: "John 8:11"),
+    Verse(title: "The truth sets you free.", text: "You will know the truth, and the truth will make you free.”", ref: "John 8:32"),
+    Verse(title: "You can be truly free.", text: "If therefore the Son makes you free, you will be free indeed.", ref: "John 8:36"),
 ]

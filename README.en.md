@@ -66,9 +66,7 @@ Magen has no account, collects no data and doesn't keep a list of the sites you 
 
 ## Support
 
-Magen is free and will stay free. I made it alone and I've got 5 mouths to feed 😅. If it helped you, any amount helps a lot:
-
-- **Pix** (Brazil, random key, PicPay): `e2a1f4a9-ebfe-4c3c-a531-92a0e7433f14`
+Magen is free and will stay free. I made it alone and I've got 5 mouths to feed 😅. If it helped you, please share it with someone who needs it.
 
 Thank you so much! — Mateus
 

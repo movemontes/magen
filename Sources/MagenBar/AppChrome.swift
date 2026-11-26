@@ -253,8 +253,24 @@ enum Updates {
                 let v = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
                 result = Release(version: v, notes: notesPart(json["body"] as? String ?? ""), dmg: url)
             }
+            if result == nil { result = fetchLatestWithoutAPI() }
             DispatchQueue.main.async { done(result) }
         }
+    }
+
+    /// Fallback when the GitHub API refuses (it allows 60 checks per hour per internet
+    /// connection): the public page /releases/latest redirects to /releases/tag/v<version>,
+    /// and the .dmg has a fixed address. No notes in this case.
+    static func fetchLatestWithoutAPI() -> Release? {
+        guard let data = curl(["--max-time", "20", "-o", "/dev/null", "-w", "%{url_effective}",
+                               "https://github.com/\(repo)/releases/latest"]),
+              let final = String(data: data, encoding: .utf8),
+              let range = final.range(of: "/releases/tag/") else { return nil }
+        var tag = String(final[range.upperBound...])
+        if tag.hasPrefix("v") { tag.removeFirst() }
+        guard !tag.isEmpty, tag.allSatisfy({ $0.isNumber || $0 == "." }),
+              let dmg = URL(string: "https://github.com/\(repo)/releases/latest/download/Magen-mac.dmg") else { return nil }
+        return Release(version: tag, notes: "", dmg: dmg)
     }
 
     /// Automatic: at most once a day, quiet unless there is a new version.

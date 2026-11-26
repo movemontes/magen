@@ -2,7 +2,7 @@
 # Compila tudo e monta o Magen.app (ícone da barra de menus) em build/.
 set -euo pipefail
 cd "$(dirname "$0")"
-VERSION="1.1"
+VERSION="1.2"
 
 swift build -c release
 APP="build/Magen.app"

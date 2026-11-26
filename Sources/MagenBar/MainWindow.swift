@@ -132,7 +132,7 @@ final class MainWindow: NSObject, NSWindowDelegate {
         guard let app else { return }
         let on = app.serviceIsOn
         let s = app.readState()
-        let count = s.map { "\($0.domains.formatted()) sites" } ?? ""
+        let count = s.map { $0.domains < 1000 ? "baixando as listas…" : "\($0.domains.formatted()) sites" } ?? ""
         statusLabel.stringValue = on ? "Protegendo · \(count)" : "Desligado"
         statusLabel.textColor = on ? Theme.ink : Theme.red
         statusLabel.font = Theme.font(12, bold: !on)
@@ -226,7 +226,8 @@ final class MainWindow: NSObject, NSWindowDelegate {
         let stats: [(String, String)] = [
             (today.formatted(), "bloqueios hoje"),
             ((s?.blockedTotal ?? 0).formatted(), "bloqueios no total"),
-            ((s?.domains ?? 0).formatted(), "sites na lista"),
+            ((s?.domains ?? 0) < 1000 ? "Baixando…" : (s?.domains ?? 0).formatted(),
+             (s?.domains ?? 0) < 1000 ? "as listas chegam em até 1 minuto" : "sites na lista"),
             (s?.lastUpdate.map { $0.formatted(.dateTime.day().month(.abbreviated).hour().minute()) } ?? "—", "listas atualizadas"),
         ]
         let gap: CGFloat = 10

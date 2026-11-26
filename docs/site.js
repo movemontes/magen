@@ -13,7 +13,13 @@
   document.querySelectorAll("[data-lang]").forEach(function (link) {
     link.addEventListener("click", function () { remember(link.getAttribute("data-lang")); });
   });
-  // (O Magen ainda só tem a página em português.)
+  if (lang === "pt" && !remembered() && location.search.indexOf("pt") < 0) {
+    var prefs = navigator.languages || [navigator.language || "pt"];
+    if (prefs.length && String(prefs[0]).toLowerCase().indexOf("pt") !== 0) {
+      location.replace("en/");
+      return;
+    }
+  }
 
   // Copiar a chave Pix.
   document.querySelectorAll("[data-copy]").forEach(function (button) {
@@ -75,7 +81,7 @@
     for (var i = 0; i < assets.length; i++) if (/-mac\.dmg$/i.test(assets[i].name)) return assets[i];
     return null;
   }
-  function size(bytes) { return (bytes < 1048576 ? (bytes / 1048576).toFixed(1).replace(".", ",") : Math.round(bytes / 1048576)) + " MB"; }
+  function size(bytes) { return (bytes < 1048576 ? (bytes / 1048576).toFixed(1).replace(".", lang === "pt" ? "," : ".") : Math.round(bytes / 1048576)) + " MB"; }
   function version(release) { return (release.name && release.name.trim()) || release.tag_name; }
 
   var box = document.getElementById("releases");

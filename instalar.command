@@ -22,6 +22,22 @@ if [ "$(id -u)" -ne 0 ]; then
   exec sudo /bin/bash "$0" "$@"
 fi
 
+# A Retransmissão Privada do iCloud precisa estar desligada: com ela ligada,
+# apps como o Claude ficam sem internet quando o Magen está ativo.
+CONSOLE_USER0=$(stat -f %Su /dev/console)
+RELAY=$(sudo -u "$CONSOLE_USER0" "$SRC/Magen.app/Contents/MacOS/MagenBar" --relay-status 2>/dev/null || echo desconhecida)
+while [ "$RELAY" = "ligada" ]; do
+  echo
+  echo "⚠️  A Retransmissão Privada do iCloud está LIGADA."
+  echo "   Com ela ligada, apps como o Claude ficam sem internet quando o Magen está ativo."
+  echo "   Desligue em: Ajustes do Sistema › (seu nome) › iCloud › Retransmissão Privada."
+  sudo -u "$CONSOLE_USER0" open "x-apple.systempreferences:com.apple.systempreferences.AppleIDSettings:icloud" 2>/dev/null || true
+  read -r -p "   Depois de desligar, aperte Enter (ou digite c e Enter para continuar mesmo assim): " ans
+  [ "$ans" = "c" ] && break
+  sleep 2
+  RELAY=$(sudo -u "$CONSOLE_USER0" "$SRC/Magen.app/Contents/MacOS/MagenBar" --relay-status 2>/dev/null || echo desconhecida)
+done
+
 echo "Instalando o Magen…"
 # Se já estiver instalado, para a versão antiga primeiro (ela devolve o DNS ao parar).
 launchctl bootout "system/$LABEL" 2>/dev/null || true

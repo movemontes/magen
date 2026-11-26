@@ -12,6 +12,12 @@ let dnsPort = UInt16(env["MAGEN_PORT"] ?? "") ?? 53
 let magenCLI = "/usr/local/bin/magen"
 let startedAtLogin = CommandLine.arguments.contains("--login")
 
+// Used by the installer: prints "ligada", "desligada" or "desconhecida" and exits.
+if CommandLine.arguments.contains("--relay-status") {
+    print(PrivateRelay.isOn().map { $0 ? "ligada" : "desligada" } ?? "desconhecida")
+    exit(0)
+}
+
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, MagenActions {
     private var statusItem: NSStatusItem!
     private let menu = NSMenu()
@@ -34,10 +40,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, MagenA
         Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { [weak self] _ in self?.refreshIcon() }
         print("Magen (app) rodando. Pasta: \(magenDir.path)")
 
+        print("Retransmissão Privada: \(PrivateRelay.isOn().map { $0 ? "ligada" : "desligada" } ?? "não sei")")
         if let tab = env["MAGEN_TEST_TAB"].flatMap(Int.init).flatMap(MainWindow.Tab.init(rawValue:)) {
             runSnapshotTest(tab)
-        } else if !startedAtLogin {
-            mainWindow.show() // opened by the person (not at login): show the window
+        } else if !startedAtLogin || (PrivateRelay.isOn() == true && serviceIsOn) {
+            // Opened by the person, or Private Relay needs attention: show the window.
+            mainWindow.show()
         }
     }
 
@@ -109,6 +117,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, MagenA
             let today = s.todayKey == Self.todayKey() ? s.blockedToday : 0
             info("Bloqueios hoje: \(today.formatted())")
         }
+        if PrivateRelay.isOn() == true {
+            item("⚠️ Desligar a Retransmissão Privada do iCloud…", #selector(openRelaySettings))
+        }
         menu.addItem(.separator())
         item("Abrir o Magen…", #selector(openWindow))
         item("Testar ou liberar um site…", #selector(openSites))
@@ -120,6 +131,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, MagenA
     static func todayKey() -> String { let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: Date()) }
 
     @objc private func openWindow() { mainWindow.show() }
+    @objc private func openRelaySettings() { PrivateRelay.openSettings() }
     @objc private func openSites() { mainWindow.show(tab: .sites) }
     @objc private func updateFromMenu() { requestUpdate() }
     @objc private func quit() { NSApp.terminate(nil) }

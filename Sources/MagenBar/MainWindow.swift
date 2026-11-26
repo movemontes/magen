@@ -48,7 +48,7 @@ final class MainWindow: NSObject, NSWindowDelegate {
     private let siteField = NSTextField()
     private var siteResult = ""
 
-    static let size = NSSize(width: 660, height: 560)
+    static let size = NSSize(width: 660, height: 650)
     private let pad: CGFloat = 16
 
     init(app: MagenActions) {
@@ -186,6 +186,26 @@ final class MainWindow: NSObject, NSWindowDelegate {
         [icon, big, small].forEach { hero.addSubview($0) }
         panel.addSubview(hero)
         y = hero.frame.maxY + 16
+
+        if PrivateRelay.isOn() == true {
+            let warn = FlippedView()
+            warn.fill = Theme.paper
+            warn.border = Theme.red
+            let t = Theme.label("A Retransmissão Privada do iCloud está ligada", size: 13, bold: true, color: Theme.red)
+            let d = Theme.label("Com ela ligada, apps como o Claude podem ficar sem internet. Desligue em: " + PrivateRelay.howTo,
+                                size: 11, wrap: contentW - 190)
+            let b = BoxButton("Abrir Ajustes") { PrivateRelay.openSettings() }
+            b.accent = true
+            let dh = textHeight(d, width: contentW - 190)
+            let h = max(64, 12 + 18 + 4 + dh + 12)
+            warn.frame = NSRect(x: 20, y: y, width: contentW, height: h)
+            t.frame = NSRect(x: 14, y: 12, width: contentW - 190, height: 18)
+            d.frame = NSRect(x: 14, y: 34, width: contentW - 190, height: dh)
+            b.frame = NSRect(x: contentW - 160, y: (h - 40) / 2, width: 146, height: 40)
+            [t, d, b].forEach { warn.addSubview($0) }
+            panel.addSubview(warn)
+            y = warn.frame.maxY + 16
+        }
 
         let today = (s?.todayKey == AppDelegate.todayKey()) ? (s?.blockedToday ?? 0) : 0
         let stats: [(String, String)] = [
@@ -355,7 +375,7 @@ final class MainWindow: NSObject, NSWindowDelegate {
         let cfg = MagenConfig.load(from: Paths.config(magenDir))
         var y: CGFloat = 20
         let relay = CheckRow(title: "Bloquear a Retransmissão Privada do iCloud",
-                             detail: "Sem isso, o Safari pode passar por fora do Magen. Com isso ligado, o Mac mostra uma vez em cada rede o aviso “não é compatível com a Retransmissão Privada”: escolha “Usar sem a Retransmissão Privada”.",
+                             detail: "Sem isso, o Safari e os apps podem passar por fora do Magen. O melhor é desligar a Retransmissão Privada nos Ajustes (" + PrivateRelay.howTo + "). Se ela ficar ligada, apps como o Claude podem perder a internet até você responder o aviso do Mac.",
                              isOn: cfg.blockPrivateRelay, width: contentW)
         relay.onToggle = { [weak self] v in
             self?.app?.runAdmin(["retransmissao", v ? "sim" : "nao"],

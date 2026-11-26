@@ -22,6 +22,28 @@ Isso vale para **todos os navegadores e apps**.
   navegadores e a Retransmissão Privada do iCloud.
 - Quando o Magen é desligado, o DNS do Mac volta a ser o que era antes.
 
+## Ícone na barra de menus 🛡️
+
+Depois de instalado, um escudo aparece no topo da tela. Clicando nele você vê:
+se está protegendo, quantos bloqueios houve hoje, e botões para testar,
+liberar ou bloquear um site e atualizar as listas.
+
+Quando um site adulto é bloqueado, aparece um **balão com um versículo
+bíblico** no canto da tela, sem mostrar o nome do site. Ele aparece no máximo
+uma vez por minuto e pode ser desligado no menu. Os bloqueios automáticos
+"anti-burla" não geram aviso.
+
+Versículos: **Bíblia Livre (BLIVRE)**, Copyright © Diego Santos, Mario Sérgio
+e Marco Teles, fevereiro de 2018, [Licença Creative Commons Atribuição 4.0
+Brasil](http://creativecommons.org/licenses/by/4.0/br/).
+
+## Velocidade
+
+O Magen só vê o *nome* do site, uma vez, e não o conteúdo das páginas. Num
+teste com 16 sites comuns, a resposta direto da Cloudflare levou cerca de 25 ms,
+e pelo Magen, 26 ms. Sites bloqueados respondem em menos de 1 ms. Para os sites
+normais, o Magen pergunta à Cloudflare (1.1.1.1).
+
 ## Instalar
 
 Dê dois cliques em **`instalar.command`** e digite a senha do Mac.
@@ -55,7 +77,7 @@ era antes e manda os arquivos do Magen para o Lixo.
 ## Para quem programa
 
 ```
-swift build -c release            # compila
+./montar-app.sh                   # compila tudo e monta bin/ (o instalador usa essa pasta)
 .build/release/magen-selftest     # autoteste (sem internet, sem senha)
 .build/release/magend --dir /tmp/magen --port 53535 --no-system-dns   # teste sem mexer no Mac
 dig @127.0.0.1 -p 53535 exemplo.com

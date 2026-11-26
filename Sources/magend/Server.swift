@@ -9,6 +9,8 @@ final class DNSServer {
     private let limiter = DispatchSemaphore(value: 256) // at most 256 lookups at once
     private let counterLock = NSLock()
     private(set) var blockedCount = 0
+    /// Called (on a work thread) each time an adult site is blocked.
+    var onAdultBlock: (() -> Void)?
 
     init(filter: Filter, upstream: [String]) {
         self.filter = filter
@@ -20,9 +22,15 @@ final class DNSServer {
         guard let q = DNSMessage.parseQuery(query) else {
             return forward(query, overTCP: overTCP) // unusual query: pass it on untouched
         }
-        if filter.isBlocked(q.name) {
+        switch filter.verdict(q.name) {
+        case .blocked:
             counterLock.lock(); blockedCount += 1; counterLock.unlock()
+            onAdultBlock?()
             return DNSMessage.blockedResponse(query: query, question: q)
+        case .blockedBypass:
+            return DNSMessage.blockedResponse(query: query, question: q)
+        case .allowed:
+            break
         }
         return forward(query, overTCP: overTCP) ?? DNSMessage.failureResponse(query: query, question: q)
     }

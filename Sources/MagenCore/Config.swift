@@ -53,6 +53,11 @@ public struct MagenState: Codable {
     public var lists: [ListResult] = []
     public var blockedSinceStart: Int = 0
     public var startedAt: Date? = nil
+    /// Counters for the menu bar (only adult-site blocks, not anti-bypass ones).
+    public var blockedTotal: Int = 0
+    public var blockedToday: Int = 0
+    public var todayKey: String = ""
+    public var lastBlockAt: Date? = nil
 
     public struct ListResult: Codable {
         public var url: String
@@ -62,6 +67,27 @@ public struct MagenState: Codable {
     }
 
     public init() {}
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        domains = try c.decodeIfPresent(Int.self, forKey: .domains) ?? 0
+        lastUpdate = try c.decodeIfPresent(Date.self, forKey: .lastUpdate)
+        lists = try c.decodeIfPresent([ListResult].self, forKey: .lists) ?? []
+        blockedSinceStart = try c.decodeIfPresent(Int.self, forKey: .blockedSinceStart) ?? 0
+        startedAt = try c.decodeIfPresent(Date.self, forKey: .startedAt)
+        blockedTotal = try c.decodeIfPresent(Int.self, forKey: .blockedTotal) ?? 0
+        blockedToday = try c.decodeIfPresent(Int.self, forKey: .blockedToday) ?? 0
+        todayKey = try c.decodeIfPresent(String.self, forKey: .todayKey) ?? ""
+        lastBlockAt = try c.decodeIfPresent(Date.self, forKey: .lastBlockAt)
+    }
+}
+
+/// Darwin notification names (system-wide, they carry no data).
+public enum Signals {
+    /// Posted by the service when an adult site was blocked (at most once per second).
+    public static let blocked = "io.github.movemontes.magen.blocked"
+    /// Posted by anyone to ask for a list update (the service limits how often).
+    public static let updateRequest = "io.github.movemontes.magen.update-request"
 }
 
 public enum Paths {

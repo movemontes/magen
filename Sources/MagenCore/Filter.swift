@@ -6,10 +6,11 @@ public final class Filter {
     private let lock = NSLock()
     private var blockSet = DomainSet()
     private var allowSet = DomainSet()
+    private var bypassSet = DomainSet()
+
+    public enum Verdict { case allowed, blocked, blockedBypass }
 
     public init() {}
-
-    public var count: Int { lock.lock(); defer { lock.unlock() }; return blockSet.count }
 
     /// `listDomains` are the domains read from downloaded lists.
     public func rebuild(listDomains: [String], config: MagenConfig) {
@@ -17,22 +18,30 @@ public final class Filter {
         all.reserveCapacity(listDomains.count + config.block.count + BuiltIn.antiBypassDomains.count)
         for d in listDomains where !BuiltIn.neverListEntries.contains(d) { all.append(d) }
         for d in config.block { if let n = Domains.normalize(Substring(d)) { all.append(n) } }
-        if config.antiBypass { all.append(contentsOf: BuiltIn.antiBypassDomains) }
         let newBlock = DomainSet(all)
+        let newBypass = DomainSet(config.antiBypass ? BuiltIn.antiBypassDomains : [])
         let newAllow = DomainSet(config.allow.compactMap { Domains.normalize(Substring($0)) })
         lock.lock()
         blockSet = newBlock
+        bypassSet = newBypass
         allowSet = newAllow
         lock.unlock()
     }
 
-    public func isBlocked(_ name: [UInt8]) -> Bool {
+    public var count: Int { lock.lock(); defer { lock.unlock() }; return blockSet.count + bypassSet.count }
+
+    /// `.blockedBypass` = a "skip the filter" service, blocked silently
+    /// (the system asks for these by itself, so no notification for them).
+    public func verdict(_ name: [UInt8]) -> Verdict {
         lock.lock()
-        let b = blockSet, a = allowSet // cheap copies (copy-on-write arrays)
+        let b = blockSet, a = allowSet, x = bypassSet // cheap copies (copy-on-write arrays)
         lock.unlock()
-        if a.matchesSelfOrParent(name) { return false }
-        return b.matchesSelfOrParent(name)
+        if a.matchesSelfOrParent(name) { return .allowed }
+        if x.matchesSelfOrParent(name) { return .blockedBypass }
+        return b.matchesSelfOrParent(name) ? .blocked : .allowed
     }
+
+    public func isBlocked(_ name: [UInt8]) -> Bool { verdict(name) != .allowed }
 
     public func isBlocked(_ name: String) -> Bool {
         var s = name.lowercased()

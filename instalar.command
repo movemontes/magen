@@ -8,10 +8,12 @@ LABEL="io.github.movemontes.magen"
 DIR="/Library/Application Support/Magen"
 PLIST="/Library/LaunchDaemons/$LABEL.plist"
 
-if [ -x "bin/magend" ]; then SRC="bin"
-elif [ -x ".build/release/magend" ]; then SRC=".build/release"
+BAR_LABEL="io.github.movemontes.magen.bar"
+BAR_PLIST="/Library/LaunchAgents/$BAR_LABEL.plist"
+
+if [ -x "bin/magend" ] && [ -d "bin/Magen.app" ]; then SRC="bin"
 else
-  echo "Não achei o programa. Se você baixou o código, rode primeiro: swift build -c release"
+  echo "Não achei o programa. Se você baixou o código, rode primeiro: ./montar-app.sh"
   exit 1
 fi
 
@@ -52,6 +54,35 @@ EOF
 chown root:wheel "$PLIST"; chmod 644 "$PLIST"
 : > /Library/Logs/Magen.log
 launchctl bootstrap system "$PLIST"
+
+# Ícone na barra de menus: vai para /Applications e abre sozinho ao entrar no Mac.
+CONSOLE_USER=$(stat -f %Su /dev/console)
+CONSOLE_UID=$(id -u "$CONSOLE_USER" 2>/dev/null || echo "")
+if [ -n "$CONSOLE_UID" ]; then launchctl bootout "gui/$CONSOLE_UID/$BAR_LABEL" 2>/dev/null || true; fi
+pkill -f "Magen.app/Contents/MacOS/MagenBar" 2>/dev/null || true
+if [ -d /Applications/Magen.app ]; then
+  OLD_TRASH="$(dscl . -read "/Users/$CONSOLE_USER" NFSHomeDirectory | awk '{print $2}')/.Trash"
+  mv /Applications/Magen.app "$OLD_TRASH/Magen antigo $(date +%Y%m%d%H%M%S).app"
+fi
+cp -R "$SRC/Magen.app" /Applications/Magen.app
+xattr -dr com.apple.quarantine /Applications/Magen.app 2>/dev/null || true
+cat > "$BAR_PLIST" <<PLISTEND
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>$BAR_LABEL</string>
+  <key>ProgramArguments</key>
+  <array><string>/Applications/Magen.app/Contents/MacOS/MagenBar</string></array>
+  <key>RunAtLoad</key><true/>
+  <key>LimitLoadToSessionType</key><string>Aqua</string>
+</dict>
+</plist>
+PLISTEND
+chown root:wheel "$BAR_PLIST"; chmod 644 "$BAR_PLIST"
+if [ -n "$CONSOLE_UID" ] && [ "$CONSOLE_USER" != "root" ]; then
+  launchctl bootstrap "gui/$CONSOLE_UID" "$BAR_PLIST" 2>/dev/null || true
+fi
 
 echo "Esperando o Magen ligar e baixar as listas (pode levar até 1 minuto)…"
 for i in $(seq 1 45); do

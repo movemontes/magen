@@ -36,6 +36,8 @@ check(f.isBlocked("use-application-dns.net"), "anti-burla Firefox")
 check(f.isBlocked("mask.icloud.com"), "anti-burla Retransmissão Privada")
 check(!f.isBlocked("www.icloud.com"), "iCloud normal funciona")
 check(f.isBlocked("ADULT.TEST."), "maiúsculas e ponto final")
+check(f.verdict(Array("mask.icloud.com".utf8)) == .blockedBypass, "anti-burla não conta como site adulto (sem aviso)")
+check(f.verdict(Array("www.adult.test".utf8)) == .blocked, "site adulto conta (gera aviso)")
 
 // DNS messages
 let q = DNSMessage.buildQuery(id: 0x1234, name: "Www.Adult.Test")

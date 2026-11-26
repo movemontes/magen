@@ -3,6 +3,7 @@
 // "does not exist" for adult sites.
 import Foundation
 import Darwin
+import notify
 import MagenCore
 
 setvbuf(stdout, nil, _IOLBF, 0)
@@ -42,6 +43,33 @@ state.startedAt = Date()
 if let d = try? Data(contentsOf: Paths.state(dir)), let s = try? JSONDecoder.iso.decode(MagenState.self, from: d) {
     state.lastUpdate = s.lastUpdate
     state.lists = s.lists
+    state.blockedTotal = s.blockedTotal
+    state.blockedToday = s.blockedToday
+    state.todayKey = s.todayKey
+    state.lastBlockAt = s.lastBlockAt
+}
+
+func todayKey() -> String {
+    let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: Date())
+}
+
+// Count adult-site blocks and tell the menu bar icon (at most once per second;
+// one page usually asks for several addresses at once).
+var lastSignal = Date.distantPast
+server.onAdultBlock = {
+    stateLock.lock()
+    let key = todayKey()
+    if state.todayKey != key { state.todayKey = key; state.blockedToday = 0 }
+    state.blockedTotal += 1
+    state.blockedToday += 1
+    state.lastBlockAt = Date()
+    let shouldSignal = Date().timeIntervalSince(lastSignal) >= 1
+    if shouldSignal { lastSignal = Date() }
+    stateLock.unlock()
+    if shouldSignal {
+        writeState()
+        notify_post(Signals.blocked)
+    }
 }
 let stateLock = NSLock()
 
@@ -191,6 +219,14 @@ onSignal(SIGHUP) {
 }
 // Update lists now (`magen atualizar`).
 onSignal(SIGUSR1) { if allowUpdates { updateLists(reason: "pedida") } }
+// Same, asked by the menu bar icon. Anyone may ask, so at most once per 5 minutes.
+var lastUpdateRequest = Date.distantPast
+var updateToken: Int32 = 0
+notify_register_dispatch(Signals.updateRequest, &updateToken, DispatchQueue.main) { _ in
+    guard allowUpdates, Date().timeIntervalSince(lastUpdateRequest) > 300 else { return }
+    lastUpdateRequest = Date()
+    updateLists(reason: "pedida pelo ícone")
+}
 
 dispatchMain()
 

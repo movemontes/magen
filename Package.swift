@@ -9,5 +9,6 @@ let package = Package(
         .executableTarget(name: "magend", dependencies: ["MagenCore"]),
         .executableTarget(name: "magen", dependencies: ["MagenCore"]),
         .executableTarget(name: "magen-selftest", dependencies: ["MagenCore"]),
+        .executableTarget(name: "MagenBar", dependencies: ["MagenCore"]),
     ]
 )

@@ -12,7 +12,13 @@ if [ "$(id -u)" -ne 0 ]; then
   exec sudo /bin/bash "$0" "$@"
 fi
 
+BAR_LABEL="io.github.movemontes.magen.bar"
+BAR_PLIST="/Library/LaunchAgents/$BAR_LABEL.plist"
+
 echo "Desligando o Magen…"
+CONSOLE_UID=$(id -u "$(stat -f %Su /dev/console)" 2>/dev/null || echo "")
+[ -n "$CONSOLE_UID" ] && launchctl bootout "gui/$CONSOLE_UID/$BAR_LABEL" 2>/dev/null
+pkill -f "Magen.app/Contents/MacOS/MagenBar" 2>/dev/null
 launchctl bootout "system/$LABEL" 2>/dev/null || true
 sleep 2
 
@@ -35,6 +41,8 @@ USER_HOME=$(dscl . -read "/Users/${SUDO_USER:-$(stat -f %Su /dev/console)}" NFSH
 TRASH="${USER_HOME:-/var/root}/.Trash/Magen removido $(date +%Y-%m-%d_%H%M%S)"
 mkdir -p "$TRASH"
 [ -f "$PLIST" ] && mv "$PLIST" "$TRASH/"
+[ -f "$BAR_PLIST" ] && mv "$BAR_PLIST" "$TRASH/magen-icone.plist"
+[ -d /Applications/Magen.app ] && mv /Applications/Magen.app "$TRASH/"
 [ -d "$DIR" ] && mv "$DIR" "$TRASH/Magen (dados)"
 [ -L /usr/local/bin/magen ] && rm /usr/local/bin/magen   # só um atalho
 [ -f /Library/Logs/Magen.log ] && mv /Library/Logs/Magen.log "$TRASH/"

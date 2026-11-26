@@ -14,7 +14,20 @@ var appVersion: String { Bundle.main.infoDictionary?["CFBundleShortVersionString
 // MARK: - App icon (Dock and Finder), like Treco's: colored tile, white letter with a black hard shadow
 
 enum AppIconArt {
+    /// Pictures that ship inside the app (Resources/icone): the buckler with "M".
+    static func bundled(_ name: String) -> NSImage? {
+        guard let url = Bundle.main.resourceURL?.appendingPathComponent(name) else { return nil }
+        return NSImage(contentsOf: url)
+    }
+    static var shield: NSImage? { bundled("escudo-512.png") }
+
     static func image(size: CGFloat) -> NSImage {
+        if let img = bundled("icone-1024.png") { return img }
+        return drawn(size: size)
+    }
+
+    /// Old drawn icon (red tile with "M"), used only if the picture is missing.
+    static func drawn(size: CGFloat) -> NSImage {
         NSImage(size: NSSize(width: size, height: size), flipped: false) { _ in
             let k = size / 1024
             let body = NSRect(x: 100 * k, y: 100 * k, width: 824 * k, height: 824 * k)
@@ -48,7 +61,7 @@ enum AppIconArt {
                                            bytesPerRow: 0, bitsPerPixel: 0)!
                 NSGraphicsContext.saveGraphicsState()
                 NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
-                image(size: px).draw(in: NSRect(x: 0, y: 0, width: px, height: px))
+                drawn(size: px).draw(in: NSRect(x: 0, y: 0, width: px, height: px))
                 NSGraphicsContext.restoreGraphicsState()
                 let name = scale == 1 ? "icon_\(base)x\(base).png" : "icon_\(base)x\(base)@2x.png"
                 try? rep.representation(using: .png, properties: [:])?.write(to: dir.appendingPathComponent(name))

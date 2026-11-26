@@ -245,3 +245,6 @@ footer a:hover { color: var(--sky); }
   .btn, .grid .card, .brand .mark { transition: none; }
   .btn:hover, .grid .card:hover, .brand:hover .mark { transform: none; }
 }
+
+/* Logo do Magen: o broquel com M (mesmo desenho do ícone) */
+.brand .mark-img { width: 36px; height: 36px; display: block; }

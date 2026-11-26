@@ -127,17 +127,21 @@ final class MainWindow: NSObject, NSWindowDelegate {
         let rail = FlippedView(frame: NSRect(x: 0, y: 0, width: R, height: H))
         rail.fill = Theme.ink
         root.addSubview(rail)
-        let tile = FlippedView(frame: NSRect(x: (R - 56) / 2, y: 40, width: 56, height: 56))
-        tile.fill = Theme.red
-        let m = Theme.label("M", size: 30, align: .center, wide: true)
-        m.font = Theme.wide(30); m.textColor = Theme.paper
-        let mShadow = Theme.label("M", size: 30, align: .center, wide: true)
-        mShadow.font = Theme.wide(30); mShadow.textColor = Theme.ink
-        let mh = m.fittingSize.height
-        mShadow.frame = NSRect(x: 2, y: (56 - mh) / 2 + 2, width: 56, height: mh)
-        m.frame = NSRect(x: 0, y: (56 - mh) / 2, width: 56, height: mh)
-        tile.addSubview(mShadow); tile.addSubview(m)
-        rail.addSubview(tile)
+        // Logo: the buckler with "M" (same picture as the app icon).
+        if let shield = AppIconArt.shield {
+            let logo = NSImageView(frame: NSRect(x: (R - 66) / 2, y: 36, width: 66, height: 66))
+            logo.image = shield
+            logo.imageScaling = .scaleProportionallyUpOrDown
+            rail.addSubview(logo)
+        } else {
+            let tile = FlippedView(frame: NSRect(x: (R - 56) / 2, y: 40, width: 56, height: 56))
+            tile.fill = Theme.red
+            let m = Theme.label("M", size: 30, align: .center, wide: true)
+            m.font = Theme.wide(30); m.textColor = Theme.paper
+            m.frame = NSRect(x: 0, y: (56 - m.fittingSize.height) / 2, width: 56, height: m.fittingSize.height)
+            tile.addSubview(m)
+            rail.addSubview(tile)
+        }
         var ry: CGFloat = 116
         for t in Tab.allCases {
             let b = RailButton(t.title, symbol: t.symbol) { [weak self] in self?.select(t) }

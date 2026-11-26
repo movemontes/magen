@@ -23,8 +23,14 @@ mkdir -p "$APP/Contents/Resources/servico"
 cp .build/release/magend .build/release/magen Resources/servico/*.sh "$APP/Contents/Resources/servico/"
 chmod 755 "$APP/Contents/Resources/servico/"*
 # Ícone do app (Dock e Finder), desenhado pelo próprio Magen
-.build/release/MagenBar --make-iconset build/AppIcon.iconset
+# (desenho em Resources/icone: broquel com M; refaça com desenhar_icone.py)
+rm -rf build/AppIcon.iconset && mkdir -p build/AppIcon.iconset
+for sz in 16 32 128 256 512; do
+  sips -z $sz $sz Resources/icone/icone-1024.png --out "build/AppIcon.iconset/icon_${sz}x${sz}.png" >/dev/null
+  sips -z $((sz*2)) $((sz*2)) Resources/icone/icone-1024.png --out "build/AppIcon.iconset/icon_${sz}x${sz}@2x.png" >/dev/null
+done
 iconutil -c icns build/AppIcon.iconset -o "$APP/Contents/Resources/AppIcon.icns"
+cp Resources/icone/icone-1024.png Resources/icone/escudo-512.png "$APP/Contents/Resources/"
 cat > "$APP/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

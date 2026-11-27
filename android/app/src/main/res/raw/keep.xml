@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A Clash Grotesk é achada pelo nome (ela pode não existir na montagem). Não deixar o R8 apagar. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@font/clash_*" />

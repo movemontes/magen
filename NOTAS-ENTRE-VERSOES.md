@@ -1,4 +1,4 @@
-# Notas entre as versões do Magen (Mac ↔ Windows)
+# Notas entre as versões do Magen (Mac ↔ Windows ↔ Android)
 
 Cada versão é feita num chat diferente. Aqui uma deixa recado para a outra. Leia o `CLAUDE.md` para saber como usar.
 
@@ -65,6 +65,32 @@ Correções que só existiam no Windows:
 ## Mac → Windows (o Mac tem, o Windows ainda não)
 
 _(vazio por enquanto: o chat do Mac escreve aqui)_
+
+---
+
+## Android → Mac e Windows (o Android tem, os outros ainda não)
+
+### 1. Dois domínios a mais na lista "nunca bloquear" (baixa prioridade)
+
+O Android pôs `android.com` e `googlezip.net` em `NEVER_LIST_ENTRIES` (são endereços que o Android usa para saber se há internet e para economizar dados). Não fazem mal no Mac nem no Windows. Vale acrescentar para as três listas ficarem iguais: no Mac em `Sources/MagenCore`, no Windows em `windows/magen_win/core.py`.
+
+### Só para saber (não precisa fazer no Mac nem no Windows)
+
+- **O porteiro é uma VPN local** (`android/.../vpn/MagenVpnService.kt`). Um app de Android não pode abrir a porta 53 nem trocar o DNS do sistema. A VPN só recebe o DNS falso `10.111.222.2`; o resto da internet passa direto.
+- **Contra burla por endereço:** além dos domínios de `ANTI_BYPASS_DOMAINS`, o Android leva para dentro da VPN os **endereços** dos servidores de DNS seguro (8.8.8.8, 1.1.1.1, 9.9.9.9…) e recusa a 443 e a 853 deles. No Mac e no Windows isso não é preciso do mesmo jeito.
+- **Sem senha:** o Android não tem senha de administrador para um app pedir. Liberar continua pedindo a frase e a espera de 1 hora. Desligar a opção contra burla pede só uma confirmação. Desligar "Dificultar a desinstalação" e remover pedem a frase "quero remover a proteção".
+- **Extras só do Android:** aviso de "DNS privado" fixo, "VPN sempre ativa", "Dificultar a desinstalação" (app de administrador do dispositivo) e a permissão "Aparecer sobre outros apps" para o versículo (sem ela, o versículo vem como notificação).
+- **Tour:** já existe no Android (o item 1 de "Windows → Mac" continua valendo só para o Mac). Os mesmos 8 passos, com "celular" no lugar de "computador". As seções ficam numa barra preta **embaixo** (passo 4: "ficam aqui embaixo"). No último passo: "o Magen fica na chave da VPN, lá em cima".
+- **Textos em inglês:** `android/app/src/main/assets/en.json` = o `en.json` do Windows + as frases novas do Android. Os versículos vêm de `windows/magen_win/data/versiculos.json` na hora de montar (uma lista só para os dois).
+- **Atualização:** procura `-android.apk` na mesma release do GitHub (`Magen-<versão>-android.apk`).
+- **Bloquear um site que o celular já abriu** pode levar alguns minutos para valer, porque o próprio Android guarda a resposta. No Mac e no Windows é igual; só ficou mais visível no teste.
+
+---
+
+## Mac e Windows → Android (os outros têm, o Android ainda não)
+
+- **Ponteiro do mouse próprio, "Sumir do Dock", Retransmissão Privada do iCloud:** não se aplicam ao Android.
+- _(o chat do Mac e o do Windows escrevem aqui quando mudarem algo que o Android também deveria ter)_
 
 ---
 

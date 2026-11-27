@@ -1,0 +1,12 @@
+.gradle/
+build/
+app/build/
+local.properties
+.idea/
+*.iml
+captures/
+.kotlin/
+# A chave que assina o .apk: fica só neste computador (e no backup do dono).
+chave-privada/
+# O .apk montado vai para a release, não para o Git.
+dist/

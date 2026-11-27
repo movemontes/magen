@@ -120,17 +120,34 @@ final class DonatePopup: NSObject, NSWindowDelegate {
         place(Theme.label("e fiz esse app de graça pra você.", size: 13, bold: true, wrap: textW), gap: 14)
         place(Theme.label(trf("Oi, eu sou o %@. O Magen não tem anúncio, não pede conta e não manda nada seu pra internet.", Author.name),
                           size: 12, color: Theme.dark, wrap: textW), gap: 10)
+        func signature(gap: CGFloat) {
+            let row = FlippedView(frame: NSRect(x: 0, y: 0, width: textW, height: 32))
+            if let photo = AppIconArt.bundled("mateus.png") {
+                let iv = NSImageView(frame: NSRect(x: 0, y: 0, width: 32, height: 32))
+                iv.image = photo
+                iv.imageScaling = .scaleProportionallyUpOrDown
+                row.addSubview(iv)
+            }
+            let name = Theme.label(Author.name, size: 12, bold: true)
+            name.frame = NSRect(x: 42, y: 0, width: textW - 42, height: 16)
+            let phrase = Theme.label("Tudo para honra e glória do Senhor!", size: 12, color: Theme.red)
+            phrase.frame = NSRect(x: 42, y: 16, width: textW - 42, height: 16)
+            row.addSubview(name); row.addSubview(phrase)
+            place(row, h: 32, gap: gap)
+        }
         if Lang.isEnglish {
             // English: no Pix (Brazil only). Just the thanks, until a dollar option exists.
             place(Theme.label("Se ele te ajudar nessa luta, o melhor apoio é mostrar o Magen para alguém que precisa. Obrigado de coração!",
-                              size: 12, color: Theme.dark, wrap: textW), gap: 20)
+                              size: 12, color: Theme.dark, wrap: textW), gap: 12)
+            signature(gap: 20)
             let ok = BoxButton("Bora usar") { [weak self] in self?.close() }
             ok.accent = true
             ok.frame = NSRect(x: pad, y: y, width: textW, height: 40)
             card.addSubview(ok)
         } else {
             place(Theme.label("Se ele te ajudar nessa luta, qualquer valor ajuda muito aqui em casa. Obrigado de coração!",
-                              size: 12, color: Theme.dark, wrap: textW), gap: 16)
+                              size: 12, color: Theme.dark, wrap: textW), gap: 12)
+            signature(gap: 16)
             place(Theme.label("Pix (chave aleatória, PicPay):", size: 12, bold: true), gap: 4)
             let key = Theme.label(Author.pix, size: 12, color: Theme.red)
             key.isSelectable = true

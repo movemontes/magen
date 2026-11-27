@@ -119,6 +119,21 @@ def donation_seen():
     return bool(prefs.get("doacaoVista"))
 
 
+def signature(d):
+    """Foto redonda pequena, "Mateus" em negrito e a frase em vermelho."""
+    import tkinter as tk
+    from .. import assets
+    row = tk.Frame(d.body, bg=T.CREAM)
+    row.pack(anchor="w", pady=(T.px(2), T.px(12)))
+    d._photo = T.image(assets.icon("mateus.png"), 32)
+    if d._photo:
+        tk.Label(row, image=d._photo, bg=T.CREAM, bd=0).pack(side="left", padx=(0, T.px(10)))
+    words = tk.Frame(row, bg=T.CREAM)
+    words.pack(side="left")
+    T.label(words, AUTHOR, size=12, bold=True, translate=False).pack(anchor="w")
+    T.label(words, "Tudo para honra e glória do Senhor!", size=12, color=T.RED).pack(anchor="w")
+
+
 def show_donation(root):
     prefs.set("doacaoVista", True)
     d = Dialog(root, "Apoie o Magen", width=480)
@@ -128,9 +143,11 @@ def show_donation(root):
     if is_en():
         # Sem Pix em inglês (regra dos apps do Mateus).
         d.text("Se ele te ajudar nessa luta, o melhor apoio é mostrar o Magen para alguém que precisa. Obrigado de coração!")
+        signature(d)
         d.buttons([("Bora usar", lambda: d.done(True), True)])
     else:
         d.text("Se ele te ajudar nessa luta, qualquer valor ajuda muito aqui em casa. Obrigado de coração!")
+        signature(d)
         d.text("Pix (chave aleatória, PicPay):", bold=True, pady=(4, 2))
         T.label(d.body, PIX, size=12, color=T.RED, translate=False).pack(anchor="w", pady=(0, T.px(10)))
         copy_btn = []

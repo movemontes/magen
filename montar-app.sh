@@ -30,7 +30,7 @@ for sz in 16 32 128 256 512; do
   sips -z $((sz*2)) $((sz*2)) Resources/icone/icone-1024.png --out "build/AppIcon.iconset/icon_${sz}x${sz}@2x.png" >/dev/null
 done
 iconutil -c icns build/AppIcon.iconset -o "$APP/Contents/Resources/AppIcon.icns"
-cp Resources/icone/icone-1024.png Resources/icone/escudo-512.png "$APP/Contents/Resources/"
+cp Resources/icone/icone-1024.png Resources/icone/escudo-512.png Resources/icone/mateus.png "$APP/Contents/Resources/"
 cat > "$APP/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

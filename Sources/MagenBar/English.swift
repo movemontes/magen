@@ -16,6 +16,7 @@ let english: [String: String] = [
     "Bora usar": "Let's go",
     "Apoie o Magen": "Support Magen",
     "Copiado!": "Copied!",
+    "Tudo para honra e glória do Senhor!": "All for the honor and glory of the Lord!",
     "Não deu para procurar agora": "Couldn't check right now",
     "Você está com a versão mais nova": "You have the latest version",
     "Confira a internet e tente de novo mais tarde.": "Check your internet and try again later.",

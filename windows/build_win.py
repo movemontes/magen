@@ -53,7 +53,7 @@ def assets_folder():
     d = os.path.join(WORK, "assets")
     shutil.rmtree(d, ignore_errors=True)
     os.makedirs(os.path.join(d, "fonts"))
-    for name in ("escudo-512.png", "icone-1024.png"):
+    for name in ("escudo-512.png", "icone-1024.png", "mateus.png"):
         shutil.copy(os.path.join(REPO, "Resources", "icone", name), d)
     for name in ("Archivo-Variable.ttf", "OFL.txt"):
         shutil.copy(os.path.join(REPO, "Resources", "fonts", name), os.path.join(d, "fonts"))

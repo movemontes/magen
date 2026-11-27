@@ -73,8 +73,147 @@ def font(size, bold=False):
     return (TEXT_BOLD_FAMILY if bold else TEXT_FAMILY, -px(size * 1.0), "bold" if bold and TEXT_BOLD_FAMILY == "Segoe UI" else "normal")
 
 
+def entry_font(size):
+    """Campos de digitar continuam no Tk: Segoe UI, que o Windows desenha bem em qualquer tamanho."""
+    return ("Segoe UI" if WINDOWS else TEXT_FAMILY, -px(size))
+
+
 def icon_font(size):
     return (ICON_FAMILY or TEXT_FAMILY, -px(size))
+
+
+# ---------------------------------------------------------------- textos desenhados
+# O Tk desenha texto com o GDI do Windows, que estraga a Clash Grotesk em tamanho pequeno
+# (letras grudadas, espaços sumindo). Por isso todo texto é desenhado com o Pillow (FreeType),
+# como os títulos, e mostrado como imagem. Fica parecido com o Mac.
+
+_WIN_FONTS = os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Fonts")
+
+
+@lru_cache(maxsize=64)
+def _text_font(pixels, bold):
+    name = assets.CLASH[1] if bold else assets.CLASH[0]
+    for path in (assets.font(name), os.path.join(_WIN_FONTS, "seguisb.ttf" if bold else "segoeui.ttf")):
+        try:
+            return ImageFont.truetype(path, pixels)
+        except OSError:
+            pass
+    return _archivo(pixels, wide=False, weight=600 if bold else 500)
+
+
+@lru_cache(maxsize=32)
+def _fallback_font(pixels, emoji):
+    """Para os símbolos que a Clash não tem (🚫 ✅ ⏳ ⚠ →)."""
+    for name in (("seguiemj.ttf",) if emoji else ()) + ("seguisym.ttf", "segoeui.ttf"):
+        try:
+            return ImageFont.truetype(os.path.join(_WIN_FONTS, name), pixels)
+        except OSError:
+            pass
+    return None
+
+
+def _runs(text, pixels, bold):
+    """Divide o texto em pedaços com a fonte certa: [(trecho, fonte, colorido)]."""
+    main = _text_font(pixels, bold)
+    out = []
+    for ch in text:
+        if ch == "\ufe0f":
+            continue
+        f, color = main, False
+        if ord(ch) >= 0x2190:
+            emoji = ord(ch) >= 0x2300
+            fb = _fallback_font(pixels, emoji)
+            if fb is not None:
+                f, color = fb, emoji
+        if out and out[-1][1] is f:
+            out[-1] = (out[-1][0] + ch, f, color)
+        else:
+            out.append((ch, f, color))
+    return out
+
+
+def _measure(text, pixels, bold, track):
+    w = sum(f.getlength(t) for t, f, _ in _runs(text, pixels, bold))
+    return w + track * max(0, len(text) - 1)
+
+
+def _wrap_text(text, pixels, bold, track, width):
+    lines = []
+    for para in text.split("\n"):
+        cur = ""
+        for word in para.split(" "):
+            trial = word if not cur else cur + " " + word
+            if cur and _measure(trial, pixels, bold, track) > width:
+                lines.append(cur)
+                cur = word
+            else:
+                cur = trial
+        lines.append(cur)
+    return lines
+
+
+@lru_cache(maxsize=1024)
+def _text_pil(text, size, bold, color, bg, wrap, track, align):
+    pixels = max(6, px(size))
+    # Espaço extra entre letras (o "kern" do Mac): só em tela com zoom. Em 100 %, letra por letra
+    # cai em pixels inteiros e o espaçamento fica torto ("SITE BL OQUEA DO").
+    tr_px = track * SCALE if SCALE >= 1.5 else 0
+    main = _text_font(pixels, bold)
+    asc, desc = main.getmetrics()
+    lines = _wrap_text(text, pixels, bold, tr_px, px(wrap)) if wrap else text.split("\n")
+    line_h = int(round(max(asc + desc, pixels * 1.25)))
+    widths = [_measure(l, pixels, bold, tr_px) for l in lines]
+    w = max(1, int(max(widths) + 0.999) + 1)
+    if wrap and align == "center":
+        w = max(w, px(wrap))
+    h = line_h * len(lines) + max(0, desc // 3)
+    img = Image.new("RGBA", (w, h), bg or (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    top = (line_h - (asc + desc)) // 2
+    for i, line in enumerate(lines):
+        x = (w - widths[i]) / 2 if align == "center" else 0
+        y = i * line_h + top
+        for chunk, f, colored in _runs(line, pixels, bold):
+            if tr_px:
+                for ch in chunk:
+                    _draw(d, x, y, ch, f, colored, color, asc)
+                    x += f.getlength(ch) + tr_px
+            else:
+                _draw(d, x, y, chunk, f, colored, color, asc)
+                x += f.getlength(chunk)
+    return img
+
+
+def _draw(d, x, y, text, f, colored, color, asc):
+    # Alinha pela linha de base da fonte principal (os símbolos têm outra altura).
+    if colored:
+        try:
+            d.text((x, y + asc), text, font=f, fill=color, anchor="ls", embedded_color=True)
+            return
+        except (ValueError, OSError):
+            pass
+    d.text((x, y + asc), text, font=f, fill=color, anchor="ls")
+
+
+def text_image(text, size=12, bold=False, color=INK, bg=None, wrap=None, track=0, align="left"):
+    """Texto na Clash Grotesk desenhado pelo Pillow (nítido), pronto para um Label ou Canvas."""
+    return ImageTk.PhotoImage(_text_pil(text, size, bold, color, bg, wrap, track, align))
+
+
+class TextLabel(tk.Label):
+    """Um texto desenhado. Para trocar depois: .set(text=..., color=..., bold=...)."""
+
+    def __init__(self, master, text, size=12, bold=False, color=INK, wrap=None, bg=None, track=0):
+        bg = bg or master["bg"]
+        super().__init__(master, bg=bg, bd=0, padx=0, pady=0, highlightthickness=0, anchor="w")
+        self._o = dict(text=text, size=size, bold=bold, color=color, wrap=wrap, bg=bg, track=track)
+        self.set()
+
+    def set(self, **kw):
+        self._o.update(kw)
+        o = self._o
+        self._img = text_image(o["text"], o["size"], o["bold"], o["color"], o["bg"], o["wrap"], o["track"])
+        self.configure(image=self._img)
 
 
 def icon_char(key):
@@ -83,7 +222,7 @@ def icon_char(key):
 
 # ---------------------------------------------------------------- títulos desenhados
 
-@lru_cache(maxsize=8)
+@lru_cache(maxsize=32)
 def _archivo(pixels, wide=True, weight=900):
     try:
         f = ImageFont.truetype(assets.font(assets.ARCHIVO), pixels)
@@ -109,23 +248,27 @@ def _wrap(text, f, width):
 
 def title_image(text, size, color=INK, highlight=None, width=None, bg=None):
     """Título na Archivo larga. Com highlight, um marca-texto atrás da metade de baixo
-    (como o PageTitle do Mac). width = quebra em várias linhas."""
+    (como o PageTitle do Mac). width = quebra em várias linhas.
+
+    Desenha 3 vezes maior e reduz: na Archivo larga e preta, alguns vãos (o do "5", entre o traço
+    de cima e a barriga) têm menos de 1 pixel e sumiam. No Mac a tela Retina já tem o dobro."""
+    ss = 3
     pixels = px(size)
-    f = _archivo(pixels)
-    lines = _wrap(text, f, px(width)) if width else [text]
+    f = _archivo(pixels * ss)
+    lines = _wrap(text, f, px(width) * ss) if width else [text]
     asc, desc = f.getmetrics()
-    lh = int((asc + desc) * 1.02)
-    w = max(int(f.getlength(l)) for l in lines) + px(12)
+    lh = int((asc + desc) * 1.02 / ss)  # altura de linha já no tamanho final (inteira, sem acumular erro)
+    w = -(-(max(int(f.getlength(l)) for l in lines) + px(12) * ss) // ss)
     h = lh * len(lines) + px(4)
-    img = Image.new("RGBA", (w, h), bg or (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
+    big = Image.new("RGBA", (w * ss, h * ss), bg or (0, 0, 0, 0))
+    d = ImageDraw.Draw(big)
     for i, line in enumerate(lines):
-        y = i * lh
+        y = i * lh * ss
         if highlight:
             lw = int(f.getlength(line))
-            d.rectangle([0, y + int(lh * 0.52), lw + px(8), y + int(lh * 0.92)], fill=highlight)
-        d.text((px(2), y), line, font=f, fill=color)
-    return ImageTk.PhotoImage(img)
+            d.rectangle([0, y + int(lh * ss * 0.52), lw + px(8) * ss, y + int(lh * ss * 0.92)], fill=highlight)
+        d.text((px(2) * ss, y), line, font=f, fill=color)
+    return ImageTk.PhotoImage(big.resize((w, h), Image.LANCZOS))
 
 
 def image(path, size):
@@ -192,11 +335,12 @@ class BoxButton(tk.Canvas):
         self.create_rectangle(x0 + 1, y0 + 1, x1, y1, fill=face, outline=INK, width=px(LINE))
         cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
         ic = icon_char(self.icon) if self.icon else ""
+        self._img = text_image(self.text.upper(), self.size, True, fg, face)
         if ic:
             self.create_text(x0 + px(22), cy, text=ic, font=icon_font(self.size + 4), fill=RED if not dark else CREAM)
-            self.create_text(x0 + px(42), cy, text=self.text.upper(), anchor="w", font=font(self.size, True), fill=fg)
+            self.create_image(x0 + px(42), cy, image=self._img, anchor="w")
         else:
-            self.create_text(cx, cy, text=self.text.upper(), font=font(self.size, True), fill=fg)
+            self.create_image(cx, cy, image=self._img)
 
 
 class DashedButton(tk.Canvas):
@@ -220,8 +364,9 @@ class DashedButton(tk.Canvas):
         W, H = self.winfo_width(), self.winfo_height()
         self.create_rectangle(1, 1, W - 2, H - 2, outline=RED if self.hover else INK, width=px(LINE),
                               dash=(6, 4), fill=HOVER if self.hover else PAPER)
-        self.create_text(W / 2, H / 2, text="+ " + self.text.upper(), font=font(12, True),
-                         fill=RED if self.hover else INK)
+        self._img = text_image("+ " + self.text.upper(), 11, True, RED if self.hover else INK,
+                               HOVER if self.hover else PAPER, track=0.5)
+        self.create_image(W / 2, H / 2, image=self._img)
 
 
 class RailButton(tk.Canvas):
@@ -250,7 +395,8 @@ class RailButton(tk.Canvas):
         cx = (W - (px(5) if self.selected else 0)) / 2
         if ic:
             self.create_text(cx, px(22), text=ic, font=icon_font(20), fill=RED if self.selected else fg)
-        self.create_text(cx, px(46) if ic else px(30), text=tr(self.text).upper(), font=font(9.5, True), fill=fg)
+        self._img = text_image(tr(self.text).upper(), 9.5, True, fg, PAPER if self.selected else INK, track=0.4)
+        self.create_image(cx, px(46) if ic else px(30), image=self._img)
 
 
 class CheckRow(tk.Frame):
@@ -262,11 +408,10 @@ class CheckRow(tk.Frame):
         self.box = tk.Canvas(self, width=px(24), height=px(24), highlightthickness=0, bg=self["bg"],
                              cursor="hand2")
         self.box.grid(row=0, column=0, rowspan=2, sticky="n", padx=(0, px(12)), pady=(px(2), 0))
-        t = tk.Label(self, text=tr(title), font=font(13, True), bg=self["bg"], fg=INK, anchor="w",
-                     justify="left", wraplength=px(width - 40), cursor="hand2")
+        t = TextLabel(self, tr(title), size=13, bold=True, wrap=width - 40)
+        t.configure(cursor="hand2")
         t.grid(row=0, column=1, sticky="w")
-        d = tk.Label(self, text=tr(detail), font=font(11), bg=self["bg"], fg=DARK, anchor="w",
-                     justify="left", wraplength=px(width - 40))
+        d = TextLabel(self, tr(detail), size=11, color=DARK, wrap=width - 40)
         d.grid(row=1, column=1, sticky="w", pady=(px(2), 0))
         for w in (self.box, t):
             w.bind("<ButtonRelease-1>", lambda e: self.toggle())
@@ -288,9 +433,9 @@ class CheckRow(tk.Frame):
             c.create_line(px(6), px(12), px(10), px(17), px(18), px(7), fill=RED, width=px(3))
 
 
-def label(master, text, size=12, bold=False, color=INK, wrap=None, bg=None, translate=True):
-    return tk.Label(master, text=tr(text) if translate else text, font=font(size, bold), fg=color,
-                    bg=bg or master["bg"], anchor="w", justify="left", wraplength=px(wrap) if wrap else 0)
+def label(master, text, size=12, bold=False, color=INK, wrap=None, bg=None, translate=True, track=0):
+    return TextLabel(master, tr(text) if translate else text, size=size, bold=bold, color=color, wrap=wrap,
+                     bg=bg, track=track)
 
 
 def boxed(master, fill=PAPER, border=INK, shadow=SHADOW, shadow_color=INK, pad=14):

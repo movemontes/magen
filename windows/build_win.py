@@ -29,9 +29,13 @@ sys.path.insert(0, HERE)
 from magen_win.version import VERSION  # noqa: E402
 
 DIST = os.path.join(HERE, "dist")
+if "--saida" in sys.argv:  # outra pasta de saída: python build_win.py --saida dist-novo
+    DIST = os.path.join(HERE, sys.argv[sys.argv.index("--saida") + 1])
 WORK = os.path.join(HERE, "build")
 APP_DIR = os.path.join(DIST, "Magen")
-ISCC_PLACES = (r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe", r"C:\Program Files\Inno Setup 6\ISCC.exe")
+ISCC_PLACES = (r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe", r"C:\Program Files\Inno Setup 6\ISCC.exe",
+               # O Inno Setup instalado só para a conta (por exemplo, pelo winget) fica aqui.
+               os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "Inno Setup 6", "ISCC.exe"))
 CLASH = ("ClashGrotesk-Medium.otf", "ClashGrotesk-Semibold.otf")
 
 
@@ -67,9 +71,30 @@ def assets_folder():
     return d
 
 
+def magen_running_from(folder):
+    """True se algum Magen.exe (o app ou o serviço) está rodando desta pasta."""
+    exe = os.path.normcase(os.path.join(folder, "Magen.exe"))
+    if not os.path.exists(exe):
+        return False
+    try:
+        with open(exe, "r+b"):  # o Windows não deixa abrir para escrita um .exe em uso
+            pass
+    except OSError:
+        return True
+    # Parado agora, mas é o serviço instalado: voltaria a rodar daqui e não acharia o programa.
+    p = subprocess.run(["sc.exe", "qc", "Magen"], capture_output=True, text=True, errors="replace")
+    return exe in os.path.normcase(p.stdout)
+
+
 def build_app():
     if sys.platform != "win32":
         raise SystemExit("Este roteiro é para rodar no Windows.")
+    if magen_running_from(APP_DIR):
+        raise SystemExit(
+            f"O Magen está rodando de {APP_DIR} (o app ou o serviço que protege a internet).\n"
+            "Montar aqui apagaria o programa em uso e a internet pode parar. Monte em outra pasta:\n"
+            "    .venv\\Scripts\\python build_win.py --saida dist-novo\n"
+            "e instale pelo instalador novo: ele passa o serviço para Arquivos de Programas.")
     os.makedirs(WORK, exist_ok=True)
     icon = make_ico(os.path.join(tempfile.mkdtemp(), "Magen.ico"))
     sep = os.pathsep

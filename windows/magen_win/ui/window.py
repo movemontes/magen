@@ -69,7 +69,17 @@ class MainWindow:
             prefs.set("janela", self.root.geometry())
         except OSError:
             pass
+        if self._tour_active():
+            self.app.tour.end()  # fechar a janela no meio do tour conta como "pular"
         self.root.withdraw()
+
+    def _tour_active(self):
+        tour = getattr(self.app, "tour", None)
+        return bool(tour and tour.active)
+
+    def spot(self, name, *widgets):
+        """Marca onde fica algo que o tour mostra."""
+        self.spots.setdefault(name, []).extend(widgets)
 
     def _resized(self, e):
         if e.widget is self.root:
@@ -81,7 +91,7 @@ class MainWindow:
     def _tick(self):
         """A cada 5 s, com a janela aberta: atualiza o estado (e a página Início)."""
         if self.root.winfo_viewable():
-            if self.tab == "inicio":
+            if self.tab == "inicio" and not self._tour_active():
                 self.build()
             else:
                 self._status()
@@ -102,11 +112,13 @@ class MainWindow:
             if not isinstance(w, tk.Toplevel):
                 w.destroy()
         self._images = []
+        self.spots = {}
         root = self.root
 
         rail = tk.Frame(root, bg=T.INK, width=T.px(92))
         rail.pack(side="left", fill="y")
         rail.pack_propagate(False)
+        self.spot("rail", rail)
         logo = T.image(assets.icon("escudo-512.png"), 66)
         if logo:
             tk.Label(rail, image=self.img(logo), bg=T.INK, bd=0).pack(pady=(T.px(18), T.px(14)))
@@ -123,8 +135,8 @@ class MainWindow:
 
         head = tk.Frame(main, bg=T.CREAM, padx=T.px(28))
         head.pack(fill="x", pady=(T.px(12), 0))
-        self.status_label = tk.Label(head, font=T.font(11), bg=T.CREAM, anchor="w")
-        self.status_label.pack(fill="x")
+        self.status_label = T.TextLabel(head, "", size=11, color=T.DARK, bg=T.CREAM)
+        self.status_label.pack(anchor="w")
         title = dict(TABS)[self.tab]
         tk.Label(head, image=self.img(T.title_image(tr(title), 40, highlight=T.HIGHLIGHT, bg=T.CREAM)),
                  bg=T.CREAM, bd=0).pack(anchor="w", pady=(T.px(4), 0))
@@ -134,16 +146,28 @@ class MainWindow:
         self.panel = tk.Frame(main, bg=T.CREAM, padx=T.px(28), pady=T.px(10))
         self.panel.pack(fill="both", expand=True)
         self.root.update_idletasks()
-        self.content_w = max(400, int(self.panel.winfo_width() / T.SCALE) - 56)
+        # Com a janela ainda escondida, o Tk não sabe a largura (dá 1): usa a largura pedida.
+        root_w = self.root.winfo_width()
+        if root_w <= 1:
+            try:
+                root_w = int(self.root.wm_geometry().split("x")[0])
+            except ValueError:
+                root_w = 1
+            if root_w <= 1:
+                root_w = T.px(SIZE[0])
+        self.content_w = max(400, int(root_w / T.SCALE) - 92 - 56)
         getattr(self, "page_" + self.tab)()
+        self.spot("panel", self.panel)
+        if self._tour_active():
+            self.root.after_idle(self.app.tour._place)
 
     def _status(self):
         on = self.app.service_on()
         s = self.app.state()
         domains = s.get("domains", 0)
         count = tr("baixando as listas…") if domains < 1000 else trf("%s sites", num(domains))
-        self.status_label.configure(text=trf("Protegendo · %s", count) if on else tr("Desligado"),
-                                    fg=T.DARK if on else T.RED, font=T.font(11, not on))
+        self.status_label.set(text=trf("Protegendo · %s", count) if on else tr("Desligado"),
+                              color=T.DARK if on else T.RED, bold=not on)
 
     def build_bottom_bar(self, main):
         bar = tk.Frame(main, bg=T.PAPER, height=T.px(64))
@@ -165,7 +189,7 @@ class MainWindow:
         dashed.pack(side="left", fill="x", expand=True, padx=(0, T.px(16)), pady=(0, T.px(4)))
 
     def section(self, text, pady=(0, 8)):
-        T.label(self.panel, tr(text).upper(), size=11, bold=True, color=T.DARK, translate=False).pack(
+        T.label(self.panel, tr(text).upper(), size=11, bold=True, color=T.DARK, translate=False, track=0.4).pack(
             anchor="w", pady=(T.px(pady[0]), T.px(pady[1])))
 
     # ------------------------------------------------------------ Início
@@ -177,6 +201,7 @@ class MainWindow:
         outer, hero = T.boxed(self.panel, fill=T.INK if on else T.RED, border=None, shadow=6,
                               shadow_color=T.RED if on else T.INK, pad=20)
         outer.pack(anchor="w", pady=(T.px(6), T.px(16)))
+        self.spot("hero", outer)
         hero.configure(width=T.px(W), height=T.px(100))
         hero.pack_propagate(False)
         bg = hero["bg"]
@@ -218,6 +243,7 @@ class MainWindow:
         ]
         grid = tk.Frame(self.panel, bg=T.CREAM)
         grid.pack(anchor="w")
+        self.spot("stats", grid)
         bw = (W - 10) / 2
         for i, (n, label) in enumerate(stats):
             o, box = T.boxed(grid, fill=T.PAPER, shadow=3, pad=12)
@@ -232,7 +258,7 @@ class MainWindow:
     def page_sites(self):
         W = self.content_w
         self.section("Testar, liberar ou bloquear um site")
-        entry = tk.Entry(self.panel, textvariable=self.site_text, font=T.font(14), relief="flat", bg=T.PAPER,
+        entry = tk.Entry(self.panel, textvariable=self.site_text, font=T.entry_font(14), relief="flat", bg=T.PAPER,
                          fg=T.INK, insertbackground=T.INK, highlightthickness=T.px(T.LINE),
                          highlightbackground=T.INK, highlightcolor=T.RED)
         entry.pack(fill="x", ipady=T.px(6), pady=(0, T.px(10)))
@@ -240,14 +266,17 @@ class MainWindow:
         entry.focus_set()
         row = tk.Frame(self.panel, bg=T.CREAM)
         row.pack(fill="x", pady=(0, T.px(10)))
+        self.spot("sitebox", entry, row)
         bw = (W - 16) / 3
         for i, (text, fn) in enumerate((("Testar", self.test_site), ("Liberar", lambda: self.change_site("liberar")),
                                         ("Bloquear", lambda: self.change_site("bloquear")))):
             T.BoxButton(row, text, fn, width=bw, height=42).pack(side="left", padx=(0 if i == 0 else T.px(8), 0))
         text = self.site_result or trf("Liberar é só para site que NÃO é adulto: pede uma frase, a permissão de "
                                        "administrador, e só vale %d minutos depois.", core.UNBLOCK_DELAY // 60)
-        T.label(self.panel, text, size=12, bold=bool(self.site_result), translate=False,
-                color=T.RED if self.site_result.startswith("🚫") else T.DARK, wrap=W).pack(anchor="w", pady=(0, T.px(18)))
+        hint = T.label(self.panel, text, size=12, bold=bool(self.site_result), translate=False,
+                       color=T.RED if self.site_result.startswith("🚫") else T.DARK, wrap=W)
+        hint.pack(anchor="w", pady=(0, T.px(18)))
+        self.spot("sitebox", hint)
 
         cfg = self.app.config()
         cols = tk.Frame(self.panel, bg=T.CREAM)
@@ -358,10 +387,12 @@ class MainWindow:
 
         def toggle(v):
             self.app.run_admin(["antiburla", "sim" if v else "nao"], self.build)
-        T.CheckRow(self.panel, "Bloquear o “DNS seguro” dos navegadores",
-                   "Chrome, Firefox e Edge têm uma opção que pergunta os endereços por fora do Windows. "
-                   "Com isso ligado, eles voltam a passar pelo Magen.",
-                   cfg.get("antiBypass", True), toggle, width=W).pack(anchor="w", pady=(T.px(4), T.px(24)))
+        anti = T.CheckRow(self.panel, "Bloquear o “DNS seguro” dos navegadores",
+                          "Chrome, Firefox e Edge têm uma opção que pergunta os endereços por fora do Windows. "
+                          "Com isso ligado, eles voltam a passar pelo Magen.",
+                          cfg.get("antiBypass", True), toggle, width=W)
+        anti.pack(anchor="w", pady=(T.px(4), T.px(24)))
+        self.spot("antiburla", anti)
         self.section("Como funciona")
         T.label(self.panel, trf("Para sites normais, o Magen pergunta à Cloudflare (%s). Ele só vê o nome do site, "
                                 "nunca o conteúdo das páginas, por isso não deixa a internet lenta.\n\nAs listas de "
@@ -411,3 +442,5 @@ class MainWindow:
         for code, name in (("pt", "Português"), ("en", "English")):
             T.BoxButton(lang, name, lambda c=code: self.app.change_language(c), width=120, height=34, size=11,
                         selected=(code == "en") == is_en()).pack(side="left", padx=(0, T.px(8)))
+        T.BoxButton(lang, "Ver o tour", self.app.start_tour, width=130, height=34, size=11).pack(
+            side="left", padx=(T.px(16), 0))

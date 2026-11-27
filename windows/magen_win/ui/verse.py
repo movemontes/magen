@@ -37,6 +37,15 @@ def virtual_screen(root):
     return 0, 0, root.winfo_screenwidth(), root.winfo_screenheight()
 
 
+def primary_screen(root):
+    """Tela principal (x, y, largura, altura), em pixels de verdade."""
+    if WINDOWS:
+        import ctypes
+        m = ctypes.windll.user32.GetSystemMetrics
+        return 0, 0, m(0), m(1)  # SM_CXSCREEN, SM_CYSCREEN
+    return 0, 0, root.winfo_screenwidth(), root.winfo_screenheight()
+
+
 class VerseAlert:
     def __init__(self, root):
         self.root = root
@@ -62,35 +71,29 @@ class VerseAlert:
         v = verse or self.random_verse()
         x, y, w, h = virtual_screen(self.root)
 
-        # Capa vermelha sobre todas as telas
+        # Capa vermelha sobre todas as telas. O cartão fica DENTRO dela (uma janela só, como no Mac):
+        # com duas janelas, clicar no vermelho trazia a capa para a frente e escondia o cartão.
         cover = tk.Toplevel(self.root)
+        cover.withdraw()
         cover.overrideredirect(True)
-        cover.configure(bg=T.RED)
+        cover.configure(bg=T.RED, cursor="arrow")
         cover.geometry(f"{w}x{h}+{x}+{y}")
         cover.attributes("-topmost", True)
-        try:
-            cover.attributes("-alpha", 0.93)
-        except tk.TclError:
-            pass
         self.cover = cover
 
-        # Cartão no centro da tela principal
-        card = tk.Toplevel(self.root)
-        card.overrideredirect(True)
-        card.configure(bg=T.INK)
-        card.attributes("-topmost", True)
+        # Cartão no centro da tela principal. A tela principal começa em (0, 0); a capa pode
+        # começar antes (monitor à esquerda ou acima), por isso desconta x e y.
+        px_, py_, sw, sh = primary_screen(self.root)
+        card = tk.Frame(cover, bg=T.INK)
         self.card = card
-        width = min(680, int(self.root.winfo_screenwidth() / T.SCALE) - 80)
+        width = min(680, int(sw / T.SCALE) - 80)
         self._build(card, v, tr(heading), width)
-        card.update_idletasks()
-        cw, ch = card.winfo_reqwidth(), card.winfo_reqheight()
-        sw, sh = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
-        card.geometry(f"+{(sw - cw) // 2}+{(sh - ch) // 2}")
-        for win in (cover, card):
-            for key in ("<Return>", "<KP_Enter>", "<Escape>", "<space>"):
-                win.bind(key, lambda e: self.try_close())
-        card.lift()
-        card.focus_force()
+        card.place(x=px_ - x + sw // 2, y=py_ - y + sh // 2, anchor="center")
+        for key in ("<Return>", "<KP_Enter>", "<Escape>", "<space>"):
+            cover.bind(key, lambda e: self.try_close())
+        cover.deiconify()
+        cover.lift()
+        cover.focus_force()
 
         self.remaining = max(0, int(lock_seconds))
         self._update_button()
@@ -107,7 +110,7 @@ class VerseAlert:
             self.root.after(1000, self._tick)
         else:
             # Volta para a frente se a pessoa tentou trocar de janela.
-            self.card.lift()
+            self.cover.lift()
 
     def _update_button(self):
         if not self.button:
@@ -122,7 +125,7 @@ class VerseAlert:
             self.close()
 
     def close(self):
-        for w in (self.card, self.cover):
+        for w in (self.cover,):
             if w is not None:
                 try:
                     w.destroy()
@@ -141,17 +144,17 @@ class VerseAlert:
         head.pack(fill="x")
         self._logo = T.title_image("MAGEN", 26, bg=T.PAPER)
         tk.Label(head, image=self._logo, bg=T.PAPER, bd=0).pack(side="left")
-        tk.Label(head, text=heading.upper(), font=T.font(12, True), fg=T.RED, bg=T.PAPER).pack(side="right")
+        T.label(head, heading.upper(), size=12, bold=True, color=T.RED, bg=T.PAPER, translate=False,
+                track=0.4).pack(side="right")
         tk.Frame(box, bg=T.INK, height=T.px(T.LINE)).pack(fill="x", pady=(T.px(12), T.px(24)))
         self._title = T.title_image(v["title"], 32, color=T.RED, width=inner_w, bg=T.PAPER)
         tk.Label(box, image=self._title, bg=T.PAPER, bd=0).pack(anchor="w")
-        tk.Label(box, text=f"“{v['text']}”", font=T.font(19), fg=T.INK, bg=T.PAPER, justify="left",
-                 anchor="w", wraplength=T.px(inner_w)).pack(anchor="w", pady=(T.px(16), T.px(12)))
+        T.label(box, f"“{v['text']}”", size=19, bg=T.PAPER, wrap=inner_w, translate=False).pack(
+            anchor="w", pady=(T.px(16), T.px(12)))
         source = "WORLD ENGLISH BIBLE" if current() == "en" else "BÍBLIA LIVRE"
-        tk.Label(box, text=f"{v['ref'].upper()}  ·  {source}", font=T.font(12, True), fg=T.DARK,
-                 bg=T.PAPER).pack(anchor="w")
-        tk.Label(box, text=tr("Feche o navegador por alguns minutos. Levante, beba água, fale com alguém."),
-                 font=T.font(12), fg=T.DARK, bg=T.PAPER, justify="left", anchor="w",
-                 wraplength=T.px(inner_w)).pack(anchor="w", pady=(T.px(22), T.px(16)))
+        T.label(box, f"{v['ref'].upper()}  ·  {source}", size=12, bold=True, color=T.DARK, bg=T.PAPER,
+                translate=False, track=0.4).pack(anchor="w")
+        T.label(box, "Feche o navegador por alguns minutos. Levante, beba água, fale com alguém.", size=12,
+                color=T.DARK, bg=T.PAPER, wrap=inner_w).pack(anchor="w", pady=(T.px(22), T.px(16)))
         self.button = T.BoxButton(box, "Entendi", self.try_close, width=inner_w, height=50, size=15, bg=T.PAPER)
         self.button.pack(anchor="w")

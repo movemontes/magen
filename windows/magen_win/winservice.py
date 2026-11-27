@@ -55,6 +55,10 @@ def install():
     if not os.path.exists(core.config_path()):
         core.save_config(core.load_config())
     if is_installed():
+        # Pode estar rodando de outro lugar (versão antiga, ou ligado direto da pasta de montagem):
+        # para antes, senão o Windows continua com o programa velho até reiniciar.
+        if is_running():
+            stop()
         _sc("config", NAME, "binPath=", exe_command(), "start=", "auto")
     else:
         code, out = _sc("create", NAME, "binPath=", exe_command(), "start=", "auto", "DisplayName=", "Magen")

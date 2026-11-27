@@ -101,7 +101,7 @@ def ask_sentence(root, title, text, sentence, yes):
     d.heading(title, color=T.RED, size=20)
     d.text(text)
     T.label(d.body, sentence, size=13, bold=True, color=T.RED, translate=False).pack(anchor="w", pady=(0, T.px(8)))
-    field = tk.Entry(d.body, font=T.font(14), relief="flat", bg=T.PAPER, fg=T.INK, insertbackground=T.INK,
+    field = tk.Entry(d.body, font=T.entry_font(14), relief="flat", bg=T.PAPER, fg=T.INK, insertbackground=T.INK,
                      highlightthickness=T.px(T.LINE), highlightbackground=T.INK, highlightcolor=T.RED)
     field.pack(fill="x", ipady=T.px(6), pady=(0, T.px(8)))
     field.focus_set()

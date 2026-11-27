@@ -15,6 +15,7 @@ from ..version import VERSION
 from . import popups, theme as T
 from .tray import Tray
 from .verse import VerseAlert
+from .tour import Tour, pending as tour_pending
 from .window import MainWindow
 
 
@@ -48,6 +49,7 @@ class App:
         self.alert = VerseAlert(self.root)
         self.window = MainWindow(self.root, self)
         self.tray = Tray(self)
+        self.tour = Tour(self)
 
     # ------------------------------------------------------------ uma cópia só
 
@@ -220,6 +222,17 @@ class App:
     def show_donation(self):
         popups.show_donation(self.root)
 
+    def start_tour(self):
+        self.window.show("inicio")
+        self.root.after(300, self.tour.start)
+
+    def first_run(self):
+        """Na primeira vez: o recado de doação e, depois dele, o tour (como no Treco)."""
+        if not popups.donation_seen():
+            self.show_donation()  # espera a pessoa fechar
+        if tour_pending():
+            self.start_tour()
+
     def show_verse_preview(self):
         self.alert.show(heading="Exemplo", lock_seconds=min(prefs.get("segundosParaFechar", 5), 3))
 
@@ -302,6 +315,8 @@ class App:
         Não clica em nada: só abre as telas por código."""
         import subprocess
         os.makedirs(out, exist_ok=True)
+        # Por cima de tudo durante o teste, senão a foto pega a janela que estiver na frente.
+        self.root.attributes("-topmost", True)
         steps = [("aba-" + k, lambda k=k: self.window.show(k)) for k, _ in __import__(
             "magen_win.ui.window", fromlist=["TABS"]).TABS]
         steps.append(("versiculo", lambda: self.alert.show(lock_seconds=5)))
@@ -348,8 +363,8 @@ class App:
         self.root.after(15000, self._refresh)
         if not self.at_login:
             self.window.show()
-            if not popups.donation_seen():
-                self.root.after(800, self.show_donation)
+            if not popups.donation_seen() or tour_pending():
+                self.root.after(800, self.first_run)
         # Procura versão nova 20 s depois de abrir e a cada 6 horas (no máximo uma vez por dia de verdade).
         self.root.after(20000, self.check_updates)
 

@@ -57,6 +57,7 @@ class Tray:
             P.MenuItem(lambda _: "Support Magen…" if is_en() else "Apoie o Magen (Pix)…", self._do(a.show_donation)),
             P.MenuItem(lambda _: tr("Procurar atualização…"), self._do(lambda: a.check_updates(manual=True))),
             P.MenuItem(lambda _: tr("Sobre o Magen"), self._do(lambda: a.show_window("sobre"))),
+            P.MenuItem(lambda _: tr("Ver o tour"), self._do(a.start_tour)),
             P.MenuItem(lambda _: "Idioma / Language", P.Menu(
                 P.MenuItem("Português", self._do(lambda: a.change_language("pt")), checked=lambda _: not is_en(), radio=True),
                 P.MenuItem("English", self._do(lambda: a.change_language("en")), checked=lambda _: is_en(), radio=True),

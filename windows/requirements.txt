@@ -1,0 +1,6 @@
+# Magen para Windows (Python 3.12)
+pillow==13.0.0
+pystray==0.19.5
+certifi
+pywin32; sys_platform == "win32"
+pyinstaller==6.22.3

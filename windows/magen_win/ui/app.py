@@ -266,7 +266,8 @@ class App:
         threading.Thread(target=work, daemon=True).start()
 
     def _update_found(self, rel, manual):
-        if not rel or not updates.is_newer(rel["version"], VERSION):
+        # Versão nova só para o Mac (sem instalador de Windows) conta como "nada novo aqui".
+        if not rel or not rel.get("url") or not updates.is_newer(rel["version"], VERSION):
             if manual:
                 if rel:
                     popups.message(self.root, "Você está com a versão mais nova", trf("Magen %s.", VERSION))

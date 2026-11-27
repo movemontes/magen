@@ -9,6 +9,7 @@ import os
 import re
 import tempfile
 import time
+import urllib.error
 import urllib.request
 
 from . import prefs
@@ -36,25 +37,34 @@ def notes_part(body, lang=None):
     return "\n".join(lines).strip()
 
 
-def _get(url, timeout=20, accept=None):
+def _get(url, timeout=20, accept=None, method=None):
     headers = {"User-Agent": f"Magen/{VERSION}"}
     if accept:
         headers["Accept"] = accept
-    req = urllib.request.Request(url, headers=headers)
-    return urllib.request.urlopen(req, timeout=timeout)
+    req = urllib.request.Request(url, headers=headers, method=method)
+    try:
+        return urllib.request.urlopen(req, timeout=timeout)
+    except urllib.error.HTTPError:
+        raise
+    except Exception:
+        # Plano B: certificados do pacote certifi (Windows sem a cadeia atualizada), como no serviço.
+        import ssl
+        import certifi
+        ctx = ssl.create_default_context(cafile=certifi.where())
+        return urllib.request.urlopen(req, timeout=timeout, context=ctx)
 
 
 def fetch_latest():
-    """{"version", "notes", "url"} ou None."""
+    """{"version", "notes", "url"} ou None (só quando não deu para perguntar ao GitHub).
+
+    "url" é None quando a última versão saiu só para o Mac: não há o que instalar no Windows."""
     try:
         with _get(f"https://api.github.com/repos/{REPO}/releases/latest", accept="application/vnd.github+json") as r:
             data = json.load(r)
         tag = data.get("tag_name", "")
         asset = next((a for a in data.get("assets", []) if a.get("name", "").endswith("-win-setup.exe")), None)
-        if asset:
-            return {"version": tag.lstrip("v"), "notes": notes_part(data.get("body", "")),
-                    "url": asset["browser_download_url"]}
-        return None  # versão sem instalador de Windows (só Mac)
+        return {"version": tag.lstrip("v"), "notes": notes_part(data.get("body", "")),
+                "url": asset["browser_download_url"] if asset else None}
     except Exception:
         pass
     # Plano B: a API do GitHub aceita 60 consultas por hora por conexão. A página pública
@@ -65,8 +75,13 @@ def fetch_latest():
         tag = final.rsplit("/releases/tag/", 1)[1].lstrip("v")
         if not re.fullmatch(r"[0-9.]+", tag):
             return None
-        return {"version": tag, "notes": "",
-                "url": f"https://github.com/{REPO}/releases/download/v{tag}/Magen-{tag}-win-setup.exe"}
+        url = f"https://github.com/{REPO}/releases/download/v{tag}/Magen-{tag}-win-setup.exe"
+        try:
+            with _get(url, method="HEAD"):
+                pass
+        except urllib.error.HTTPError:
+            url = None  # versão só de Mac
+        return {"version": tag, "notes": "", "url": url}
     except Exception:
         return None
 

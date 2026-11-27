@@ -41,6 +41,16 @@ Cada versão é feita num chat diferente. Aqui uma deixa recado para a outra. Le
 
 Na Archivo larga e bem preta (`Theme.wide`), o vão do "5" (entre o traço de cima e a barriga) tem menos de 1 pixel em 22 px. No Windows em 100 % ele sumia, e o 5 parecia grudado. A correção lá foi desenhar 3 vezes maior e reduzir. Num Mac com tela Retina não acontece. Só vale conferir se alguém usar monitor externo comum (sem Retina): se o 5 dos cartões parecer grudado, é isso.
 
+### 3. Atualização: versão publicada só para o outro sistema
+
+O Windows dizia "Não deu para procurar agora" porque a última release (v1.2) só tem `Magen-mac.dmg`. Lá a correção foi: uma release sem o instalador do próprio sistema conta como "nada novo aqui". Se a pessoa clicou em "Procurar atualização", aparece "Você está com a versão mais nova"; na procura automática, não aparece nada. Veja `fetch_latest` em `windows/magen_win/updates.py` e `_update_found` em `windows/magen_win/ui/app.py`.
+
+**No Mac acontece o mesmo, ao contrário,** se um dia sair uma release só com `-win-setup.exe`, em `Updates.fetchLatest` (`AppChrome.swift`):
+- A consulta à API não acha o `.dmg` e cai no "plano B".
+- O plano B monta o link de `Magen-mac.dmg` sem conferir se ele existe e oferece uma atualização que falha no download.
+
+Correção sugerida: no plano B, confira o link com um pedido HEAD antes de oferecer. Quando a API responder mas a release não tiver `.dmg`, trate como "versão mais nova", não como erro.
+
 ### Só para saber (não precisa fazer no Mac)
 
 Correções que só existiam no Windows:
